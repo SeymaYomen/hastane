@@ -26,7 +26,7 @@ const DoctorsPage = () => {
     return matchesSearch && matchesDepartment;
   });
 
-  const handleDoctorClick = (doctor) => {
+  const handleAppointment = (doctor) => {
     localStorage.setItem('selectedDoctor', JSON.stringify({
       name: `${getTitle(doctor.experience_years)} ${doctor.full_name}`,
       department: doctor.department
@@ -87,8 +87,7 @@ const DoctorsPage = () => {
             {filteredDoctors.map((doctor) => (
               <div
                 key={doctor.id}
-                className="bg-dark-800 rounded-lg shadow-md overflow-hidden transition-transform duration-300 hover:-translate-y-2 border border-dark-700 cursor-pointer"
-                onClick={() => handleDoctorClick(doctor)}
+                className="bg-dark-800 rounded-lg shadow-md overflow-hidden transition-transform duration-300 hover:-translate-y-2 border border-dark-700"
               >
                 <div className="p-6">
                   <div className="mb-4">
@@ -138,10 +137,7 @@ const DoctorsPage = () => {
                   </div>
                   
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDoctorClick(doctor);
-                    }}
+                    onClick={() => handleAppointment(doctor)}
                     className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center"
                   >
                     <Calendar className="mr-2 h-4 w-4" />
