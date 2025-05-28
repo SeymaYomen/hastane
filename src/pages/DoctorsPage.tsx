@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar } from 'lucide-react';
+import { Calendar, Award, GraduationCap, Languages, Stethoscope, Clock } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 
 const DoctorsPage = () => {
@@ -23,75 +23,85 @@ const DoctorsPage = () => {
   };
 
   return (
-    <div className="pt-16 pb-16 bg-dark-900 min-h-screen">
+    <div className="pt-16 pb-16 bg-gradient-to-b from-blue-900 to-gray-900 min-h-screen">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="max-w-3xl mx-auto text-center py-12">
-          <h1 className="text-3xl font-bold text-white mb-4">Doktorlarımız</h1>
-          <p className="text-lg text-gray-300">
-            Sağlık Takip'te alanında uzman, deneyimli doktorlarımızla sizlere en iyi sağlık hizmetini sunuyoruz.
+          <h1 className="text-4xl font-bold text-white mb-4">Doktorlarımız</h1>
+          <p className="text-xl text-blue-200">
+            Alanında uzman ve deneyimli doktor kadromuzla hizmetinizdeyiz
           </p>
         </div>
 
-        {/* Doctors Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {doctors.map((doctor) => (
             <div
               key={doctor.id}
-              className="bg-dark-800 rounded-lg shadow-md overflow-hidden transition-transform duration-300 hover:-translate-y-2 border border-dark-700"
+              className="bg-white/10 backdrop-blur-md rounded-xl shadow-xl overflow-hidden hover:transform hover:scale-105 transition-all duration-300"
             >
               <div className="p-6">
-                <div className="mb-4">
-                  <h3 className="text-xl font-bold text-white">
-                    {getTitle(doctor.experience_years)} {doctor.full_name}
-                  </h3>
-                  <p className="text-blue-400 font-medium">{doctor.department}</p>
+                <div className="flex items-center mb-6">
+                  <div className="p-3 bg-blue-600/20 rounded-full">
+                    <Stethoscope className="h-8 w-8 text-blue-400" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-xl font-bold text-white">
+                      {getTitle(doctor.experience_years)} {doctor.full_name}
+                    </h3>
+                    <p className="text-blue-400">{doctor.department}</p>
+                  </div>
                 </div>
-                
-                <div className="mb-4">
-                  <div className="flex items-center mb-2">
-                    <span className="font-medium text-gray-300 w-28">Deneyim:</span>
-                    <span className="text-gray-400">{doctor.experience_years} yıl</span>
+
+                <div className="space-y-4">
+                  <div className="flex items-center text-gray-300">
+                    <Award className="h-5 w-5 mr-3 text-yellow-500" />
+                    <span>{doctor.experience_years} Yıl Deneyim</span>
                   </div>
-                  <div className="flex items-center mb-2">
-                    <span className="font-medium text-gray-300 w-28">Eğitim:</span>
-                    <span className="text-gray-400">{doctor.education}</span>
+
+                  <div className="flex items-center text-gray-300">
+                    <GraduationCap className="h-5 w-5 mr-3 text-blue-400" />
+                    <span>{doctor.education}</span>
                   </div>
-                  <div className="flex items-start mb-2">
-                    <span className="font-medium text-gray-300 w-28">Uzmanlık:</span>
-                    <div>
-                      <ul className="list-disc list-inside text-gray-400 space-y-1">
-                        {doctor.specialties.map((specialty, index) => (
-                          <li key={index} className="text-sm">{specialty}</li>
-                        ))}
-                      </ul>
+
+                  <div className="flex items-center text-gray-300">
+                    <Languages className="h-5 w-5 mr-3 text-green-400" />
+                    <span>{doctor.languages.join(', ')}</span>
+                  </div>
+
+                  <div>
+                    <h4 className="text-white font-medium mb-2 flex items-center">
+                      <Award className="h-5 w-5 mr-2 text-purple-400" />
+                      Uzmanlık Alanları
+                    </h4>
+                    <ul className="list-disc list-inside text-gray-300 ml-2">
+                      {doctor.specialties.map((specialty, index) => (
+                        <li key={index} className="text-sm">{specialty}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="text-white font-medium mb-2 flex items-center">
+                      <Clock className="h-5 w-5 mr-2 text-teal-400" />
+                      Çalışma Günleri
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {doctor.working_days.map((day, index) => (
+                        <span
+                          key={index}
+                          className="px-3 py-1 bg-blue-600/20 text-blue-300 rounded-full text-sm"
+                        >
+                          {day}
+                        </span>
+                      ))}
                     </div>
                   </div>
-                  <div className="flex items-center mb-2">
-                    <span className="font-medium text-gray-300 w-28">Diller:</span>
-                    <span className="text-gray-400">{doctor.languages.join(', ')}</span>
-                  </div>
                 </div>
-                
-                <div className="mb-6">
-                  <span className="font-medium text-gray-300 block mb-2">Çalışma Günleri:</span>
-                  <div className="flex flex-wrap gap-1">
-                    {doctor.working_days.map((day, index) => (
-                      <span
-                        key={index}
-                        className="inline-block bg-blue-900/50 text-blue-200 text-xs px-2 py-1 rounded"
-                      >
-                        {day}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                
+
                 <button
                   onClick={() => handleAppointment(doctor)}
-                  className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center"
+                  className="mt-6 w-full bg-gradient-to-r from-blue-600 to-blue-800 text-white py-3 px-4 rounded-lg flex items-center justify-center hover:from-blue-700 hover:to-blue-900 transition-all duration-300"
                 >
-                  <Calendar className="mr-2 h-4 w-4" />
+                  <Calendar className="mr-2 h-5 w-5" />
                   Randevu Al
                 </button>
               </div>
