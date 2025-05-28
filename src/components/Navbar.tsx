@@ -83,11 +83,7 @@ const Navbar = () => {
               </div>
               <span className="text-2xl font-bold text-white ml-3 flex items-center">
                 <span className="transform transition-transform group-hover:translate-x-1 duration-300">Sağlık</span>
-                <Heart 
-                  className="mx-2 h-5 w-5 text-teal-400 transform transition-all duration-300 group-hover:scale-110" 
-                  fill="currentColor"
-                />
-                <span className="transform transition-transform group-hover:translate-x-[-2px] duration-300">Takip</span>
+                <span className="transform transition-transform group-hover:translate-x-[-2px] duration-300 text-teal-400">Takip</span>
               </span>
             </div>
           </Link>
