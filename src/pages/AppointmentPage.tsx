@@ -11,7 +11,7 @@ const timeSlots = {
 };
 
 const AppointmentPage = () => {
-  const { allDoctors } = useData();
+  const { doctors } = useData();
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [selectedDoctor, setSelectedDoctor] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
@@ -66,7 +66,7 @@ const AppointmentPage = () => {
     if (selectedDate && selectedDoctor) {
       const date = new Date(selectedDate);
       const dayName = date.toLocaleDateString('tr-TR', { weekday: 'long' });
-      const doctor = allDoctors.find(d => d.full_name === selectedDoctor);
+      const doctor = doctors.find(d => d.full_name === selectedDoctor);
       
       if (doctor && doctor.working_days) {
         if (!doctor.working_days.includes(dayName)) {
@@ -74,7 +74,7 @@ const AppointmentPage = () => {
           setUnavailableDoctor(selectedDoctor);
           
           // Find available doctors for this day
-          const available = allDoctors
+          const available = doctors
             .filter(d => d.working_days.includes(dayName))
             .map(d => d.full_name);
           setAvailableDoctors(available);
@@ -92,12 +92,12 @@ const AppointmentPage = () => {
         }
       }
     }
-  }, [selectedDate, selectedDoctor, allDoctors]);
+  }, [selectedDate, selectedDoctor, doctors]);
 
   // Function to check if a date is available
   const isDateAvailable = (date: Date) => {
     const dayName = date.toLocaleDateString('tr-TR', { weekday: 'long' });
-    const doctor = allDoctors.find(d => d.full_name === selectedDoctor);
+    const doctor = doctors.find(d => d.full_name === selectedDoctor);
     return doctor ? doctor.working_days.includes(dayName) : false;
   };
 
@@ -259,7 +259,7 @@ const AppointmentPage = () => {
                 disabled={!selectedDepartment}
               >
                 <option value="">Doktor Seçiniz</option>
-                {allDoctors
+                {doctors
                   .filter(doctor => doctor.department === selectedDepartment)
                   .map(doctor => (
                     <option key={doctor.id} value={doctor.full_name}>
@@ -273,7 +273,7 @@ const AppointmentPage = () => {
               )}
               {selectedDoctor && (
                 <p className="mt-2 text-sm text-gray-600">
-                  Seçilen doktorun çalışma günleri: {allDoctors.find(d => d.full_name === selectedDoctor)?.working_days.join(', ')}
+                  Seçilen doktorun çalışma günleri: {doctors.find(d => d.full_name === selectedDoctor)?.working_days.join(', ')}
                 </p>
               )}
             </div>
