@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, ChevronDown, User, Calendar, Phone, LogOut } from 'lucide-react';
+import { Menu, X, ChevronDown, User, Calendar, Phone, LogOut, Heart, Stethoscope } from 'lucide-react';
 import ThemeSwitcher from './ThemeSwitcher';
 import { supabase } from '../lib/supabase';
 
@@ -73,9 +73,14 @@ const Navbar = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
           <Link to="/" className="flex items-center space-x-2">
-            <span className="text-2xl font-bold text-white">
-              Sağlık<span className="text-teal-400">Takip</span>
-            </span>
+            <div className="flex items-center">
+              <Stethoscope className="h-8 w-8 text-white" />
+              <span className="text-2xl font-bold text-white ml-2">
+                Sağlık
+                <Heart className="inline-block h-5 w-5 mx-1 text-teal-400" />
+                Takip
+              </span>
+            </div>
           </Link>
 
           {/* Desktop Navigation */}
