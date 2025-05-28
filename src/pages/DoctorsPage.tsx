@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Calendar, Search, Filter, Star } from 'lucide-react';
+import { useData } from '../contexts/DataContext';
 
 const DoctorsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const navigate = useNavigate();
+  const { doctors } = useData();
 
   const getTitle = (years: number) => {
     if (years >= 20) return 'Prof. Dr.';
@@ -14,112 +16,19 @@ const DoctorsPage = () => {
     return 'Dr.';
   };
 
-  const doctors = [
-    {
-      id: 1,
-      name: 'Ahmet Yılmaz',
-      department: 'Kardiyoloji',
-      experience: '15 yıl',
-      education: 'Hacettepe Üniversitesi Tıp Fakültesi',
-      specialties: ['Koroner Arter Hastalıkları', 'Kalp Yetmezliği', 'Hipertansiyon'],
-      languages: ['Türkçe', 'İngilizce'],
-      availability: ['Pazartesi', 'Çarşamba', 'Cuma']
-    },
-    {
-      id: 2,
-      name: 'Ayşe Demir',
-      department: 'Kardiyoloji',
-      experience: '12 yıl',
-      education: 'Ankara Üniversitesi Tıp Fakültesi',
-      specialties: ['Ritim Bozuklukları', 'Kalp Kapak Hastalıkları', 'EKG Yorumlama'],
-      languages: ['Türkçe', 'İngilizce', 'Almanca'],
-      availability: ['Salı', 'Perşembe', 'Cumartesi']
-    },
-    {
-      id: 3,
-      name: 'Mehmet Kaya',
-      department: 'Kardiyoloji',
-      experience: '10 yıl',
-      education: 'İstanbul Üniversitesi Tıp Fakültesi',
-      specialties: ['Kalp Kapak Hastalıkları', 'Koroner Anjiyografi', 'Hipertansiyon'],
-      languages: ['Türkçe', 'İngilizce'],
-      availability: ['Pazartesi', 'Salı', 'Çarşamba']
-    },
-    {
-      id: 4,
-      name: 'Zeynep Aydın',
-      department: 'Nöroloji',
-      experience: '14 yıl',
-      education: 'İstanbul Üniversitesi Tıp Fakültesi',
-      specialties: ['Baş Ağrısı ve Migren', 'Epilepsi', 'Parkinson Hastalığı'],
-      languages: ['Türkçe', 'İngilizce'],
-      availability: ['Pazartesi', 'Salı', 'Çarşamba']
-    },
-    {
-      id: 5,
-      name: 'Kemal Şahin',
-      department: 'Nöroloji',
-      experience: '20 yıl',
-      education: 'Fırat Üniversitesi Tıp Fakültesi',
-      specialties: ['İnme ve Serebrovasküler Hastalıklar', 'Multipl Skleroz', 'Baş Dönmesi'],
-      languages: ['Türkçe', 'İngilizce'],
-      availability: ['Perşembe', 'Cuma', 'Cumartesi']
-    },
-    {
-      id: 6,
-      name: 'Selin Yıldız',
-      department: 'Nöroloji',
-      experience: '8 yıl',
-      education: 'Gazi Üniversitesi Tıp Fakültesi',
-      specialties: ['Epilepsi', 'Uyku Bozuklukları', 'Baş Ağrısı'],
-      languages: ['Türkçe', 'İngilizce', 'Fransızca'],
-      availability: ['Salı', 'Çarşamba', 'Perşembe']
-    },
-    {
-      id: 7,
-      name: 'Ali Öztürk',
-      department: 'Genel Cerrahi',
-      experience: '18 yıl',
-      education: 'Hacettepe Üniversitesi Tıp Fakültesi',
-      specialties: ['Laparoskopik Cerrahi', 'Meme Cerrahisi', 'Tiroid Cerrahisi'],
-      languages: ['Türkçe', 'İngilizce'],
-      availability: ['Pazartesi', 'Çarşamba', 'Cuma']
-    },
-    {
-      id: 8,
-      name: 'Hasan Kılıç',
-      department: 'Genel Cerrahi',
-      experience: '15 yıl',
-      education: 'Ankara Üniversitesi Tıp Fakültesi',
-      specialties: ['Fıtık Cerrahisi', 'Safra Kesesi', 'Endoskopi'],
-      languages: ['Türkçe', 'İngilizce'],
-      availability: ['Salı', 'Perşembe', 'Cumartesi']
-    },
-    {
-      id: 9,
-      name: 'Gül Tekin',
-      department: 'Genel Cerrahi',
-      experience: '12 yıl',
-      education: 'İstanbul Üniversitesi Tıp Fakültesi',
-      specialties: ['Kolorektal Cerrahi', 'Meme Cerrahisi', 'Minimal İnvaziv Cerrahi'],
-      languages: ['Türkçe', 'İngilizce', 'Almanca'],
-      availability: ['Pazartesi', 'Salı', 'Çarşamba']
-    }
-  ];
-
   const departments = [...new Set(doctors.map(doctor => doctor.department))];
 
   const filteredDoctors = doctors.filter(doctor => {
-    const matchesSearch = doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = doctor.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          doctor.department.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDepartment = selectedDepartment ? doctor.department === selectedDepartment : true;
     
     return matchesSearch && matchesDepartment;
   });
 
-  const handleAppointment = (doctor) => {
+  const handleDoctorClick = (doctor) => {
     localStorage.setItem('selectedDoctor', JSON.stringify({
-      name: `${getTitle(parseInt(doctor.experience))} ${doctor.name}`,
+      name: `${getTitle(doctor.experience_years)} ${doctor.full_name}`,
       department: doctor.department
     }));
     navigate('/appointment');
@@ -178,12 +87,13 @@ const DoctorsPage = () => {
             {filteredDoctors.map((doctor) => (
               <div
                 key={doctor.id}
-                className="bg-dark-800 rounded-lg shadow-md overflow-hidden transition-transform duration-300 hover:-translate-y-2 border border-dark-700"
+                className="bg-dark-800 rounded-lg shadow-md overflow-hidden transition-transform duration-300 hover:-translate-y-2 border border-dark-700 cursor-pointer"
+                onClick={() => handleDoctorClick(doctor)}
               >
                 <div className="p-6">
                   <div className="mb-4">
                     <h3 className="text-xl font-bold text-white">
-                      {getTitle(parseInt(doctor.experience))} {doctor.name}
+                      {getTitle(doctor.experience_years)} {doctor.full_name}
                     </h3>
                     <p className="text-blue-400 font-medium">{doctor.department}</p>
                   </div>
@@ -191,7 +101,7 @@ const DoctorsPage = () => {
                   <div className="mb-4">
                     <div className="flex items-center mb-2">
                       <span className="font-medium text-gray-300 w-28">Deneyim:</span>
-                      <span className="text-gray-400">{doctor.experience}</span>
+                      <span className="text-gray-400">{doctor.experience_years} yıl</span>
                     </div>
                     <div className="flex items-center mb-2">
                       <span className="font-medium text-gray-300 w-28">Eğitim:</span>
@@ -216,7 +126,7 @@ const DoctorsPage = () => {
                   <div className="mb-6">
                     <span className="font-medium text-gray-300 block mb-2">Çalışma Günleri:</span>
                     <div className="flex flex-wrap gap-1">
-                      {doctor.availability.map((day, index) => (
+                      {doctor.working_days.map((day, index) => (
                         <span
                           key={index}
                           className="inline-block bg-blue-900/50 text-blue-200 text-xs px-2 py-1 rounded"
@@ -228,7 +138,10 @@ const DoctorsPage = () => {
                   </div>
                   
                   <button
-                    onClick={() => handleAppointment(doctor)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDoctorClick(doctor);
+                    }}
                     className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center"
                   >
                     <Calendar className="mr-2 h-4 w-4" />
