@@ -2,13 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Users, Search, Phone, MessageSquareText, Loader2, ChevronRight, ChevronLeft, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import AppointmentQRCode from '../components/AppointmentQRCode';
-
-// Doctor availability by day
-const doctorSchedules = {
-  'Dr. Ahmet Yılmaz': ['Pazartesi', 'Çarşamba', 'Cuma'],
-  'Dr. Mehmet Öz': ['Salı', 'Perşembe', 'Cumartesi'],
-  'Dr. Ayşe Demir': ['Pazartesi', 'Salı', 'Çarşamba']
-};
+import { useData } from '../contexts/DataContext';
 
 // Time slots by day type
 const timeSlots = {
@@ -17,6 +11,7 @@ const timeSlots = {
 };
 
 const AppointmentPage = () => {
+  const { allDoctors } = useData();
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [selectedDoctor, setSelectedDoctor] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
@@ -71,36 +66,39 @@ const AppointmentPage = () => {
     if (selectedDate && selectedDoctor) {
       const date = new Date(selectedDate);
       const dayName = date.toLocaleDateString('tr-TR', { weekday: 'long' });
-      const doctorDays = doctorSchedules[selectedDoctor];
-
-      if (!doctorDays.includes(dayName)) {
-        setShowUnavailableMessage(true);
-        setUnavailableDoctor(selectedDoctor);
-        
-        // Find available doctors for this day
-        const available = Object.entries(doctorSchedules)
-          .filter(([doctor, days]) => days.includes(dayName))
-          .map(([doctor]) => doctor);
-        setAvailableDoctors(available);
-      } else {
-        setShowUnavailableMessage(false);
-        setUnavailableDoctor('');
-        setAvailableDoctors([]);
-        
-        // Weekend schedule for Saturday
-        if (dayName === 'Cumartesi') {
-          setAvailableTimes(timeSlots.weekend);
+      const doctor = allDoctors.find(d => d.full_name === selectedDoctor);
+      
+      if (doctor && doctor.working_days) {
+        if (!doctor.working_days.includes(dayName)) {
+          setShowUnavailableMessage(true);
+          setUnavailableDoctor(selectedDoctor);
+          
+          // Find available doctors for this day
+          const available = allDoctors
+            .filter(d => d.working_days.includes(dayName))
+            .map(d => d.full_name);
+          setAvailableDoctors(available);
         } else {
-          setAvailableTimes(timeSlots.weekday);
+          setShowUnavailableMessage(false);
+          setUnavailableDoctor('');
+          setAvailableDoctors([]);
+          
+          // Weekend schedule for Saturday
+          if (dayName === 'Cumartesi') {
+            setAvailableTimes(timeSlots.weekend);
+          } else {
+            setAvailableTimes(timeSlots.weekday);
+          }
         }
       }
     }
-  }, [selectedDate, selectedDoctor]);
+  }, [selectedDate, selectedDoctor, allDoctors]);
 
   // Function to check if a date is available
   const isDateAvailable = (date: Date) => {
     const dayName = date.toLocaleDateString('tr-TR', { weekday: 'long' });
-    return selectedDoctor ? doctorSchedules[selectedDoctor].includes(dayName) : false;
+    const doctor = allDoctors.find(d => d.full_name === selectedDoctor);
+    return doctor ? doctor.working_days.includes(dayName) : false;
   };
 
   // Function to format date for display
@@ -261,16 +259,21 @@ const AppointmentPage = () => {
                 disabled={!selectedDepartment}
               >
                 <option value="">Doktor Seçiniz</option>
-                <option value="Dr. Ahmet Yılmaz">Dr. Ahmet Yılmaz (Pazartesi, Çarşamba, Cuma)</option>
-                <option value="Dr. Mehmet Öz">Dr. Mehmet Öz (Salı, Perşembe, Cumartesi)</option>
-                <option value="Dr. Ayşe Demir">Dr. Ayşe Demir (Pazartesi, Salı, Çarşamba)</option>
+                {allDoctors
+                  .filter(doctor => doctor.department === selectedDepartment)
+                  .map(doctor => (
+                    <option key={doctor.id} value={doctor.full_name}>
+                      {doctor.full_name} ({doctor.working_days.join(', ')})
+                    </option>
+                  ))
+                }
               </select>
               {errors.doctor && (
                 <p className="mt-1 text-sm text-red-600">{errors.doctor}</p>
               )}
               {selectedDoctor && (
                 <p className="mt-2 text-sm text-gray-600">
-                  Seçilen doktorun çalışma günleri: {doctorSchedules[selectedDoctor].join(', ')}
+                  Seçilen doktorun çalışma günleri: {allDoctors.find(d => d.full_name === selectedDoctor)?.working_days.join(', ')}
                 </p>
               )}
             </div>
