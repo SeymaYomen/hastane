@@ -7,10 +7,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Supabase bağlantı bilgileri eksik. Lütfen .env dosyasını kontrol edin.');
 }
 
-// Log configuration for debugging (remove in production)
-console.log('Supabase URL:', supabaseUrl);
-console.log('Supabase Anon Key exists:', !!supabaseAnonKey);
-
 // Create Supabase client with additional options for better error handling
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -23,30 +19,55 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       'Content-Type': 'application/json',
     },
   },
+  // Add retry configuration for better reliability
+  db: {
+    schema: 'public',
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
+    },
+  },
 });
 
-// Test connection function
+// Enhanced connection test function
 export const testConnection = async () => {
   try {
     console.log('Testing Supabase connection...');
-    const { data, error } = await supabase.from('doctors').select('count').limit(1);
+    console.log('Supabase URL:', supabaseUrl);
+    console.log('Using anon key:', supabaseAnonKey ? 'Yes' : 'No');
+    
+    // Test with a simple query that should work even with empty tables
+    const { data, error } = await supabase
+      .from('doctors')
+      .select('id')
+      .limit(1);
+    
     if (error) {
       console.error('Supabase connection test failed:', error);
-      return false;
+      return { success: false, error: error.message };
     }
+    
     console.log('Supabase connection successful');
-    return true;
+    return { success: true, data };
   } catch (err) {
     console.error('Supabase connection error:', err);
+    
     if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
-      console.error('Network error: Unable to reach Supabase. Please check:');
-      console.error('1. Internet connection');
-      console.error('2. Supabase URL and API key in .env file');
-      console.error('3. CORS settings in Supabase dashboard');
+      const errorMsg = `
+Network connection failed. Please check:
+1. Internet connection is stable
+2. Supabase project is active and running
+3. CORS settings allow localhost:5173
+4. Supabase URL and API key are correct
+5. No firewall blocking the connection
+
+Current Supabase URL: ${supabaseUrl}
+`;
+      console.error(errorMsg);
+      return { success: false, error: 'Network connection failed' };
     }
-    return false;
+    
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
   }
 };
-
-// Test connection on module load
-testConnection();

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, testConnection } from '../lib/supabase';
 import type { Database } from '../types/supabase';
 
 type Doctor = Database['public']['Tables']['doctors']['Row'];
@@ -11,6 +11,7 @@ interface DataContextType {
   refreshData: () => Promise<void>;
   loading: boolean;
   error: string | null;
+  connectionStatus: 'connecting' | 'connected' | 'failed';
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -20,9 +21,11 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'failed'>('connecting');
 
   const fetchDoctors = async () => {
     try {
+      console.log('Fetching doctors...');
       const { data, error } = await supabase
         .from('doctors')
         .select('*')
@@ -30,14 +33,18 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (error) {
         console.error('Doktorlar yüklenirken hata:', error);
-        throw new Error(`Database error: ${error.message}`);
+        throw new Error(`Veritabanı hatası: ${error.message}`);
       }
       
+      console.log('Doctors fetched successfully:', data?.length || 0, 'records');
       setDoctors(data || []);
+      setConnectionStatus('connected');
     } catch (err) {
       console.error('Fetch doctors error:', err);
+      setConnectionStatus('failed');
+      
       if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
-        throw new Error('Supabase bağlantısı kurulamadı. Lütfen internet bağlantınızı kontrol edin ve .env dosyasındaki Supabase ayarlarının doğru olduğundan emin olun.');
+        throw new Error('Supabase bağlantısı kurulamadı. Lütfen internet bağlantınızı kontrol edin ve Supabase projenizin aktif olduğundan emin olun.');
       }
       throw err;
     }
@@ -45,8 +52,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchAppointments = async () => {
     try {
+      console.log('Fetching appointments...');
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) {
+        console.log('No authenticated user, skipping appointments fetch');
         setAppointments([]);
         return;
       }
@@ -59,12 +68,14 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (error) {
         console.error('Randevular yüklenirken hata:', error);
-        throw new Error(`Database error: ${error.message}`);
+        throw new Error(`Veritabanı hatası: ${error.message}`);
       }
       
+      console.log('Appointments fetched successfully:', data?.length || 0, 'records');
       setAppointments(data || []);
     } catch (err) {
       console.error('Fetch appointments error:', err);
+      
       if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
         throw new Error('Supabase bağlantısı kurulamadı. Lütfen internet bağlantınızı kontrol edin.');
       }
@@ -76,47 +87,95 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setLoading(true);
       setError(null);
+      setConnectionStatus('connecting');
+      
+      // First test the connection
+      console.log('Testing connection before data fetch...');
+      const connectionTest = await testConnection();
+      
+      if (!connectionTest.success) {
+        throw new Error(`Bağlantı testi başarısız: ${connectionTest.error}`);
+      }
+      
+      console.log('Connection test passed, fetching data...');
       await Promise.all([fetchDoctors(), fetchAppointments()]);
+      
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Bilinmeyen bir hata oluştu';
       setError(errorMessage);
+      setConnectionStatus('failed');
       console.error('Data refresh error:', err);
+      
+      // Provide more specific error messages
+      if (errorMessage.includes('Failed to fetch')) {
+        setError('Sunucuya bağlanılamıyor. Lütfen internet bağlantınızı kontrol edin ve birkaç saniye sonra tekrar deneyin.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    refreshData();
+    // Initial data load with delay to ensure environment is ready
+    const initializeData = async () => {
+      console.log('Initializing data context...');
+      
+      // Small delay to ensure environment variables are loaded
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      await refreshData();
+    };
 
-    // Gerçek zamanlı güncellemeler için subscription
-    const doctorsSubscription = supabase
-      .channel('doctors_changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'doctors' },
-        () => {
-          console.log('Doctors table changed, refreshing data...');
-          refreshData();
-        }
-      )
-      .subscribe();
+    initializeData();
 
-    const appointmentsSubscription = supabase
-      .channel('appointments_changes')
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'appointments' },
-        () => {
-          console.log('Appointments table changed, refreshing data...');
-          refreshData();
-        }
-      )
-      .subscribe();
+    // Set up real-time subscriptions only after successful connection
+    let doctorsSubscription: any;
+    let appointmentsSubscription: any;
+
+    const setupSubscriptions = () => {
+      if (connectionStatus === 'connected') {
+        console.log('Setting up real-time subscriptions...');
+        
+        doctorsSubscription = supabase
+          .channel('doctors_changes')
+          .on('postgres_changes', 
+            { event: '*', schema: 'public', table: 'doctors' },
+            (payload) => {
+              console.log('Doctors table changed:', payload);
+              refreshData();
+            }
+          )
+          .subscribe();
+
+        appointmentsSubscription = supabase
+          .channel('appointments_changes')
+          .on('postgres_changes',
+            { event: '*', schema: 'public', table: 'appointments' },
+            (payload) => {
+              console.log('Appointments table changed:', payload);
+              refreshData();
+            }
+          )
+          .subscribe();
+      }
+    };
+
+    // Setup subscriptions when connection is established
+    if (connectionStatus === 'connected') {
+      setupSubscriptions();
+    }
 
     return () => {
-      doctorsSubscription.unsubscribe();
-      appointmentsSubscription.unsubscribe();
+      if (doctorsSubscription) {
+        console.log('Cleaning up doctors subscription');
+        doctorsSubscription.unsubscribe();
+      }
+      if (appointmentsSubscription) {
+        console.log('Cleaning up appointments subscription');
+        appointmentsSubscription.unsubscribe();
+      }
     };
-  }, []);
+  }, [connectionStatus]);
 
   return (
     <DataContext.Provider value={{ 
@@ -124,7 +183,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       appointments, 
       refreshData, 
       loading, 
-      error 
+      error,
+      connectionStatus
     }}>
       {children}
     </DataContext.Provider>
