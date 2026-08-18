@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-type Theme = 'blue' | 'green' | 'pink' | 'purple' | 'gray';
+/**
+ * Modern Tema Sistemi - 3 Mode
+ * - light: Açık tema, gündüz kullanımı
+ * - dark: Koyu tema, akşam kullanımı
+ * - high-contrast: Erişilebilirlik, yüksek kontrast
+ */
+type Theme = 'light' | 'dark' | 'high-contrast';
 
 interface ThemeContextType {
   theme: Theme;
@@ -11,13 +17,20 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const [theme, setTheme] = useState<Theme>(() => {
-    const savedTheme = localStorage.getItem('theme');
-    return (savedTheme as Theme) || 'green';
+    const savedTheme = localStorage.getItem('app-theme');
+    return (savedTheme as Theme) || 'light';
   });
 
   useEffect(() => {
-    localStorage.setItem('theme', theme);
+    localStorage.setItem('app-theme', theme);
+    // data-theme attribute'u CSS'de [data-theme="light"] selektörü için
     document.documentElement.setAttribute('data-theme', theme);
+    // Sistem preferansını override et
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }, [theme]);
 
   return (

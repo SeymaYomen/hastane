@@ -8,11 +8,9 @@ const ThemeSwitcher = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const themes = [
-    { id: 'blue', name: 'Mavi', color: 'bg-blue-500' },
-    { id: 'green', name: 'Yeşil', color: 'bg-green-500' },
-    { id: 'pink', name: 'Pembe', color: 'bg-pink-500' },
-    { id: 'purple', name: 'Mor', color: 'bg-purple-500' },
-    { id: 'gray', name: 'Gri', color: 'bg-gray-500' },
+    { id: 'light', name: 'Açık', description: 'Gündüz modu' },
+    { id: 'dark', name: 'Koyu', description: 'Akşam modu' },
+    { id: 'high-contrast', name: 'Yüksek Kontrast', description: 'Erişilebilirlik' },
   ];
 
   useEffect(() => {
@@ -31,31 +29,47 @@ const ThemeSwitcher = () => {
     setIsOpen(false);
   };
 
+  const getCurrentThemeName = () => {
+    return themes.find(t => t.id === theme)?.name || 'Açık';
+  };
+
   return (
     <div className="relative" ref={dropdownRef}>
       <button
-        className="p-2 rounded-lg hover:bg-gray-100/10 transition-colors duration-200"
+        className="p-2 rounded-lg hover:bg-gray-100/10 transition-colors duration-200 flex items-center space-x-1"
         aria-label="Tema seçenekleri"
         onClick={() => setIsOpen(!isOpen)}
+        title={`Mevcut tema: ${getCurrentThemeName()}`}
       >
         <Palette className="h-5 w-5 text-white" />
+        <span className="hidden sm:inline text-sm text-white font-medium">{getCurrentThemeName()}</span>
       </button>
       
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-2 z-50">
+        <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-lg shadow-lg py-2 z-50 border border-gray-200 dark:border-slate-700">
           {themes.map((t) => (
             <button
               key={t.id}
               onClick={() => handleThemeChange(t.id)}
-              className={`w-full px-4 py-2 text-left flex items-center space-x-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                theme === t.id ? 'font-medium' : ''
+              className={`w-full px-4 py-3 text-left flex items-start space-x-3 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors ${
+                theme === t.id ? 'bg-blue-50 dark:bg-slate-600' : ''
               }`}
+              aria-pressed={theme === t.id}
             >
-              <span className={`w-4 h-4 rounded-full ${t.color}`}></span>
-              <span className="text-gray-700 dark:text-gray-200">{t.name}</span>
-              {theme === t.id && (
-                <span className="ml-auto text-green-500">✓</span>
-              )}
+              <div className="flex-shrink-0 mt-1">
+                {theme === t.id && (
+                  <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-green-500 text-white text-xs font-bold">
+                    ✓
+                  </span>
+                )}
+                {theme !== t.id && (
+                  <span className="inline-flex items-center justify-center h-5 w-5 rounded-full border-2 border-gray-300 dark:border-slate-500"></span>
+                )}
+              </div>
+              <div className="flex-grow">
+                <div className="text-gray-900 dark:text-gray-100 font-medium">{t.name}</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">{t.description}</div>
+              </div>
             </button>
           ))}
         </div>

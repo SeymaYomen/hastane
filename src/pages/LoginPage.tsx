@@ -146,27 +146,9 @@ const LoginPage = () => {
         }
 
         if (signUpData.user) {
-          const { error: insertError } = await supabase
-            .from('users')
-            .insert([
-              {
-                id: signUpData.user.id,
-                email,
-                full_name: name,
-                tckn,
-              }
-            ]);
-
-          if (insertError) {
-            if (insertError.code === '23505') {
-              throw new Error('Bu TC Kimlik Numarası zaten kayıtlı');
-            }
-            throw new Error('Kullanıcı bilgileri kaydedilirken hata oluştu');
-          }
-
-          localStorage.setItem('isAuthenticated', 'true');
-          navigate('/appointment');
-        }
+  localStorage.setItem('isAuthenticated', 'true');
+  navigate('/appointment');
+}
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Bir hata oluştu');

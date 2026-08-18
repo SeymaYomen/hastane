@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Bot, User, X } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
+import { clinicConfig } from '../../config/clinicConfig';
 
 interface Message {
   id: number;
@@ -14,10 +16,10 @@ interface ChatbotDialogProps {
   onClose: () => void;
 }
 
-const initialMessages: Message[] = [
+const getInitialMessages = (): Message[] => [
   {
     id: 1,
-    text: 'Merhaba! Ben ElazığSağlık AI asistanı. Size nasıl yardımcı olabilirim?',
+    text: `Merhaba! Ben ${clinicConfig.chatbotName}. Size nasıl yardımcı olabilirim?`,
     sender: 'bot',
     timestamp: new Date(),
   },
@@ -94,7 +96,7 @@ const symptomsToDepartments = {
 };
 
 const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ onClose }) => {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [messages, setMessages] = useState<Message[]>(getInitialMessages());
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [lastSuggestedDepartment, setLastSuggestedDepartment] = useState<string | null>(null);
@@ -230,7 +232,13 @@ const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed bottom-24 right-6 z-40 w-80 sm:w-96 h-[500px] bg-white rounded-lg shadow-xl flex flex-col animate-fade-in">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: 20 }}
+      transition={{ type: 'spring', damping: 25, stiffness: 300, duration: 0.3 }}
+      className="fixed bottom-24 right-6 z-40 w-80 sm:w-96 h-[500px] bg-white dark:bg-slate-800 rounded-lg shadow-xl flex flex-col"
+    >
       {/* Header */}
       <div className="bg-theme-primary text-white px-4 py-3 rounded-t-lg flex justify-between items-center">
         <div className="flex items-center">
@@ -311,7 +319,7 @@ const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ onClose }) => {
           </button>
         </div>
       </form>
-    </div>
+    </motion.div>
   );
 };
 

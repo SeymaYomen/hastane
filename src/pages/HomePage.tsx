@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, CheckCircle, Award, Phone, Clock, MessageSquareText } from 'lucide-react';
+import { motion } from 'motion/react';
+import { clinicConfig } from '../config/clinicConfig';
 
 const HomePage = () => {
   const features = [
@@ -106,11 +108,11 @@ const HomePage = () => {
             <div className="flex items-center mt-4 md:mt-0">
               <Phone className="h-10 w-10 text-white mr-4" />
               <div>
-                <h3 className="text-white text-lg font-bold">Hastane Danışma</h3>
+                <h3 className="text-white text-lg font-bold">{clinicConfig.clinicName} Danışma</h3>
                 <p className="text-red-100">Bilgi ve Destek</p>
               </div>
             </div>
-            <div className="text-2xl font-bold text-white">0424 233 44 55</div>
+            <div className="text-2xl font-bold text-white">{clinicConfig.contact.phone}</div>
           </div>
         </div>
       </section>
@@ -119,24 +121,57 @@ const HomePage = () => {
       <section className="py-16 bg-gradient-to-b from-gray-900 to-blue-900 text-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-white mb-4">Neden Biz?</h2>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-              ElazığSağlık olarak hastalarımıza en iyi hizmeti sunmak için çalışıyoruz.
-            </p>
+            <motion.h2 
+              initial={{ opacity: 0, y: -20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="text-3xl font-bold text-white mb-4"
+            >
+              Neden Biz?
+            </motion.h2>
+            <motion.p 
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="text-xl text-gray-300 max-w-3xl mx-auto"
+            >
+              {clinicConfig.clinicName} olarak hastalarımıza en iyi hizmeti sunmak için çalışıyoruz.
+            </motion.p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <motion.div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8"
+            initial="hidden"
+            whileInView="visible"
+            variants={{
+              hidden: { opacity: 0 },
+              visible: {
+                opacity: 1,
+                transition: {
+                  staggerChildren: 0.1,
+                  delayChildren: 0.2,
+                }
+              }
+            }}
+            viewport={{ once: true }}
+          >
             {features.map((feature, index) => (
-              <div
+              <motion.div
                 key={index}
                 className="bg-white/10 backdrop-blur-sm rounded-lg p-6 hover:bg-white/20 transition-all duration-300"
+                variants={{
+                  hidden: { opacity: 0, y: 20 },
+                  visible: { opacity: 1, y: 0 }
+                }}
+                whileHover={{ y: -8 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               >
                 <div className="mb-4">{feature.icon}</div>
                 <h3 className="text-xl font-semibold text-white mb-2">{feature.title}</h3>
                 <p className="text-gray-300">{feature.description}</p>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
@@ -144,17 +179,50 @@ const HomePage = () => {
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Bölümlerimiz</h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <motion.h2 
+              initial={{ opacity: 0, y: -20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="text-3xl font-bold text-gray-900 mb-4"
+            >
+              Bölümlerimiz
+            </motion.h2>
+            <motion.p 
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="text-xl text-gray-600 max-w-3xl mx-auto"
+            >
               Farklı uzmanlık alanlarında deneyimli doktorlarımız ve modern ekipmanlarımızla hizmetinizdeyiz.
-            </p>
+            </motion.p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <motion.div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8"
+            initial="hidden"
+            whileInView="visible"
+            variants={{
+              hidden: { opacity: 0 },
+              visible: {
+                opacity: 1,
+                transition: {
+                  staggerChildren: 0.1,
+                  delayChildren: 0.2,
+                }
+              }
+            }}
+            viewport={{ once: true }}
+          >
             {departments.map((department, index) => (
-              <div
+              <motion.div
                 key={index}
                 className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 group"
+                variants={{
+                  hidden: { opacity: 0, y: 20 },
+                  visible: { opacity: 1, y: 0 }
+                }}
+                whileHover={{ y: -12 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               >
                 <div className="h-48 overflow-hidden">
                   <img
@@ -176,9 +244,9 @@ const HomePage = () => {
                     </svg>
                   </Link>
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
 
           <div className="text-center mt-12">
             <Link

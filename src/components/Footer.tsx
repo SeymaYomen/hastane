@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Clock, Facebook, Twitter, Instagram, Linkedin } from 'lucide-react';
+import { clinicConfig } from '../config/clinicConfig';
 
 const Footer = () => {
   return (
@@ -9,24 +10,32 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* About */}
           <div>
-            <h3 className="text-xl font-semibold mb-4">Elazığ<span className="text-teal-400">Sağlık</span></h3>
+            <h3 className="text-xl font-semibold mb-4">{clinicConfig.clinicName}</h3>
             <p className="text-gray-300 mb-4">
-              Elazığ'ın sağlık ihtiyaçlarına yönelik modern çözümler sunan hastanemiz, 
+              {clinicConfig.contact.city}'de sağlık ihtiyaçlarına yönelik modern çözümler sunan kuruluşumuz, 
               yüksek kaliteli sağlık hizmetlerine kolay erişim sağlamaktadır.
             </p>
             <div className="flex space-x-4 mt-4">
-              <a href="#" className="text-gray-300 hover:text-teal-400 transition-colors">
-                <Facebook size={20} />
-              </a>
-              <a href="#" className="text-gray-300 hover:text-teal-400 transition-colors">
-                <Twitter size={20} />
-              </a>
-              <a href="#" className="text-gray-300 hover:text-teal-400 transition-colors">
-                <Instagram size={20} />
-              </a>
-              <a href="#" className="text-gray-300 hover:text-teal-400 transition-colors">
-                <Linkedin size={20} />
-              </a>
+              {clinicConfig.socialMedia?.facebook && (
+                <a href={clinicConfig.socialMedia.facebook} className="text-gray-300 hover:text-teal-400 transition-colors">
+                  <Facebook size={20} />
+                </a>
+              )}
+              {clinicConfig.socialMedia?.twitter && (
+                <a href={clinicConfig.socialMedia.twitter} className="text-gray-300 hover:text-teal-400 transition-colors">
+                  <Twitter size={20} />
+                </a>
+              )}
+              {clinicConfig.socialMedia?.instagram && (
+                <a href={clinicConfig.socialMedia.instagram} className="text-gray-300 hover:text-teal-400 transition-colors">
+                  <Instagram size={20} />
+                </a>
+              )}
+              {clinicConfig.socialMedia?.linkedin && (
+                <a href={clinicConfig.socialMedia.linkedin} className="text-gray-300 hover:text-teal-400 transition-colors">
+                  <Linkedin size={20} />
+                </a>
+              )}
             </div>
           </div>
 
@@ -86,22 +95,32 @@ const Footer = () => {
             <ul className="space-y-3">
               <li className="flex items-start space-x-3">
                 <MapPin size={20} className="text-teal-400 mt-1 flex-shrink-0" />
-                <span className="text-gray-300">Fırat Üniversitesi Kampüsü, Elazığ Merkez, 23119</span>
+                <span className="text-gray-300">
+                  {clinicConfig.contact.address}, {clinicConfig.contact.city} {clinicConfig.contact.zipCode || ''}
+                </span>
               </li>
               <li className="flex items-center space-x-3">
                 <Phone size={20} className="text-teal-400 flex-shrink-0" />
-                <span className="text-gray-300">0424 233 44 55</span>
+                <a href={`tel:+90${clinicConfig.contact.phone.replace(/\D/g, '').slice(1)}`} className="text-gray-300 hover:text-teal-400">
+                  {clinicConfig.contact.phone}
+                </a>
               </li>
               <li className="flex items-center space-x-3">
                 <Mail size={20} className="text-teal-400 flex-shrink-0" />
-                <span className="text-gray-300">info@elazigsaglik.com</span>
+                <a href={`mailto:${clinicConfig.contact.email}`} className="text-gray-300 hover:text-teal-400">
+                  {clinicConfig.contact.email}
+                </a>
               </li>
               <li className="flex items-start space-x-3">
                 <Clock size={20} className="text-teal-400 mt-1 flex-shrink-0" />
                 <div>
-                  <p className="text-gray-300">Pazartesi - Cuma: 08:00 - 18:00</p>
-                  <p className="text-gray-300">Cumartesi: 08:00 - 14:00</p>
-                  <p className="text-gray-300">Pazar: Kapalı (Acil servis 24 saat açık)</p>
+                  <p className="text-gray-300">Hafta içi: {clinicConfig.workingHours.weekday}</p>
+                  {clinicConfig.workingHours.weekend && (
+                    <p className="text-gray-300">Hafta sonu: {clinicConfig.workingHours.weekend}</p>
+                  )}
+                  {clinicConfig.workingHours.note && (
+                    <p className="text-gray-300">{clinicConfig.workingHours.note}</p>
+                  )}
                 </div>
               </li>
             </ul>
@@ -110,7 +129,7 @@ const Footer = () => {
 
         <div className="border-t border-blue-800 mt-8 pt-6">
           <p className="text-center text-gray-400">
-            &copy; {new Date().getFullYear()} ElazığSağlık. Tüm hakları saklıdır.
+            &copy; {new Date().getFullYear()} {clinicConfig.clinicName}. Tüm hakları saklıdır.
           </p>
         </div>
       </div>

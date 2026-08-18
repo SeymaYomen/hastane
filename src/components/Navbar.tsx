@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, ChevronDown, User, Calendar, Phone, LogOut, Heart, Stethoscope } from 'lucide-react';
 import ThemeSwitcher from './ThemeSwitcher';
 import { supabase } from '../lib/supabase';
+import { clinicConfig } from '../config/clinicConfig';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -82,8 +83,8 @@ const Navbar = () => {
                 />
               </div>
               <span className="text-2xl font-bold text-white ml-3 flex items-center">
-                <span className="transform transition-transform group-hover:translate-x-1 duration-300">Sağlık</span>
-                <span className="transform transition-transform group-hover:translate-x-[-2px] duration-300 text-teal-400">Takip</span>
+                <span className="transform transition-transform group-hover:translate-x-1 duration-300">{clinicConfig.shortName.split(' ')[0]}</span>
+                <span className="transform transition-transform group-hover:translate-x-[-2px] duration-300 text-teal-400">{clinicConfig.shortName.split(' ')[1]}</span>
               </span>
             </div>
           </Link>
@@ -107,11 +108,11 @@ const Navbar = () => {
             <ThemeSwitcher />
             
             <a
-              href="tel:+904242334455"
+              href={`tel:+90${clinicConfig.contact.phone.replace(/\D/g, '').slice(1)}`}
               className="flex items-center space-x-1 text-white/90 hover:text-white"
             >
               <Phone size={18} />
-              <span className="font-medium">0424 233 44 55</span>
+              <span className="font-medium">{clinicConfig.contact.phone}</span>
             </a>
             
             {isAuthenticated ? (
