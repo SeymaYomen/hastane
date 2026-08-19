@@ -21,7 +21,7 @@ function App() {
   return (
     <ThemeProvider>
       <DataProvider>
-        <div className="flex flex-col min-h-screen bg-gray-50">
+        <div className="theme-bg theme-text flex min-h-screen flex-col transition-colors duration-300">
           <Navbar />
           <main className="flex-grow">
             <ScrollToTop />
