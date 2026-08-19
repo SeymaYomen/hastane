@@ -11,7 +11,7 @@ const timeSlots = {
 };
 
 const AppointmentPage = () => {
-  const { doctors } = useData();
+  const { doctors, departments } = useData();
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [selectedDoctor, setSelectedDoctor] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
@@ -31,7 +31,7 @@ const AppointmentPage = () => {
   const [unavailableDoctor, setUnavailableDoctor] = useState('');
   const [availableDoctors, setAvailableDoctors] = useState<string[]>([]);
 
-  const departmentPrices = {
+ const departmentPrices: Record<string, number> = {
     'Kardiyoloji': 1200,
     'Nöroloji': 1100,
     'Genel Cerrahi': 1000,
@@ -231,10 +231,15 @@ const AppointmentPage = () => {
                   errors.department ? 'border-red-300' : 'border-gray-300'
                 }`}
               >
-                <option value="">Bölüm Seçiniz</option>
-                {Object.keys(departmentPrices).map((dept) => (
-                  <option key={dept} value={dept}>{dept}</option>
-                ))}
+                <option value="" disabled>
+  Bölüm Seçiniz
+</option>
+
+{departments.map((department) => (
+  <option key={department.id} value={department.name}>
+    {department.name}
+  </option>
+))}
               </select>
               {errors.department && (
                 <p className="mt-1 text-sm text-red-600">{errors.department}</p>
