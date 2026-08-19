@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, AlertTriangle, Star } from 'lucide-react';
+import { Calendar, Clock, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AppointmentQRCode from '../components/AppointmentQRCode';
+import { supabase } from '../lib/supabase';
 
 interface Appointment {
   id: string;
@@ -117,64 +118,153 @@ const MyAppointmentsPage = () => {
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Load appointments from localStorage
-    const savedAppointments = localStorage.getItem('appointments');
-    if (savedAppointments) {
-      setAppointments(JSON.parse(savedAppointments));
-    }
-  }, []);
+  const loadAppointments = async () => {
+    try {
+      const {
+        data: { user },
+        error: userError
+      } = await supabase.auth.getUser();
 
-  const handleCancelClick = (id: string) => {
+      if (userError) throw userError;
+
+      if (!user) {
+        console.error('Kullanıcı oturumu bulunamadı.');
+        return;
+      }
+
+      const {
+        data: appointmentRows,
+        error: appointmentsError
+      } = await supabase
+        .from('appointments')
+        .select(`
+          id,
+          date,
+          time,
+          status,
+          notes,
+          price,
+          is_first_visit,
+          rating,
+          doctors (
+            full_name,
+            department
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('date', { ascending: true })
+        .order('time', { ascending: true });
+
+      if (appointmentsError) throw appointmentsError;
+
+      const {
+        data: profile,
+        error: profileError
+      } = await supabase
+        .from('users')
+        .select('full_name, phone, email, tckn')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        console.warn('Profil bilgileri alınamadı:', profileError);
+      }
+
+      const mappedAppointments: Appointment[] = (appointmentRows || []).map(
+        (row: any) => ({
+          id: row.id,
+          department: row.doctors?.department || 'Bölüm bilgisi yok',
+          doctor: row.doctors?.full_name || 'Doktor bilgisi yok',
+          date: row.date,
+          time: row.time,
+          status: row.status,
+          patientName: profile?.full_name || '',
+          patientPhone: profile?.phone || '',
+          patientEmail: profile?.email || user.email || '',
+          patientTCKN: profile?.tckn || '',
+          notes: row.notes || undefined,
+          rating: row.rating || undefined,
+          price: Number(row.price || 0),
+          isFirstVisit: row.is_first_visit
+        })
+      );
+
+      setAppointments(mappedAppointments);
+    } catch (error) {
+      console.error('Randevular yüklenirken hata oluştu:', error);
+    }
+  };
+
+  loadAppointments();
+}, []);
+
+  function handleCancelClick(id: string) {
     setSelectedAppointmentId(id);
     setCancelDialogOpen(true);
-  };
+  }
 
-  const handleCancelConfirm = () => {
-    if (selectedAppointmentId) {
-      const updatedAppointments = appointments.map(app =>
-        app.id === selectedAppointmentId ? { ...app, status: 'cancelled' as const } : app
-      );
-      setAppointments(updatedAppointments);
-      localStorage.setItem('appointments', JSON.stringify(updatedAppointments));
-    }
+  const handleCancelConfirm = async () => {
+  if (!selectedAppointmentId) return;
+
+  try {
+    const { error } = await supabase
+      .from('appointments')
+      .update({ status: 'cancelled' })
+      .eq('id', selectedAppointmentId);
+
+    if (error) throw error;
+
+    setAppointments(prevAppointments =>
+      prevAppointments.map(app =>
+        app.id === selectedAppointmentId
+          ? { ...app, status: 'cancelled' as const }
+          : app
+      )
+    );
+
     setCancelDialogOpen(false);
     setSelectedAppointmentId(null);
-  };
+  } catch (error) {
+    console.error('Randevu iptal edilirken hata oluştu:', error);
+    alert('Randevu iptal edilirken bir hata oluştu.');
+  }
+};
 
   const handleRatingClick = (id: string) => {
     setSelectedAppointmentId(id);
     setRatingDialogOpen(true);
   };
 
-  const handleRatingSubmit = (rating: number) => {
-    if (selectedAppointmentId) {
-      const updatedAppointments = appointments.map(app =>
-        app.id === selectedAppointmentId ? { ...app, rating } : app
-      );
-      setAppointments(updatedAppointments);
-      localStorage.setItem('appointments', JSON.stringify(updatedAppointments));
-    }
+  const handleRatingSubmit = async (rating: number) => {
+  if (!selectedAppointmentId) return;
+
+  try {
+    const { error } = await supabase
+      .from('appointments')
+      .update({ rating })
+      .eq('id', selectedAppointmentId);
+
+    if (error) throw error;
+
+    setAppointments(prevAppointments =>
+      prevAppointments.map(app =>
+        app.id === selectedAppointmentId
+          ? { ...app, rating }
+          : app
+      )
+    );
+
     setRatingDialogOpen(false);
     setSelectedAppointmentId(null);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'upcoming':
-        return 'bg-green-100 text-green-800';
-      case 'completed':
-        return 'bg-gray-100 text-gray-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const formatDate = (dateStr: string) => {
+  } catch (error) {
+    console.error('Değerlendirme kaydedilirken hata oluştu:', error);
+    alert('Değerlendirme kaydedilirken bir hata oluştu.');
+  }
+};
+  function formatDate(dateStr: string) {
     const [year, month, day] = dateStr.split('-');
     return `${day}/${month}/${year}`;
-  };
+  }
 
   const isAppointmentPassed = (dateStr: string, timeStr: string) => {
     const [year, month, day] = dateStr.split('-').map(Number);
@@ -190,12 +280,20 @@ const MyAppointmentsPage = () => {
   };
 
   const upcomingAppointments = appointments
-    .filter(app => app.status === 'upcoming')
-    .sort(sortAppointments);
+  .filter(
+    app =>
+      app.status === 'upcoming' &&
+      !isAppointmentPassed(app.date, app.time)
+  )
+  .sort(sortAppointments);
 
-  const pastAppointments = appointments
-    .filter(app => app.status !== 'upcoming')
-    .sort((a, b) => sortAppointments(b, a));
+const pastAppointments = appointments
+  .filter(
+    app =>
+      app.status !== 'upcoming' ||
+      isAppointmentPassed(app.date, app.time)
+  )
+  .sort((a, b) => sortAppointments(b, a));
 
   return (
     <div className="pt-16 pb-16 bg-dark-900 min-h-screen">
@@ -324,15 +422,17 @@ const MyAppointmentsPage = () => {
                           {appointment.time}
                         </div>
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          appointment.status === 'completed' 
+                          appointment.status !== 'cancelled'
                             ? 'bg-gray-900/50 text-gray-200' 
                             : 'bg-red-900/50 text-red-200'
                         }`}>
-                          {appointment.status === 'completed' ? 'Tamamlandı' : 'İptal Edildi'}
+                          {appointment.status === 'cancelled'
+  ? 'İptal Edildi'
+  : 'Tamamlandı'}
                         </span>
                       </div>
                       
-                      {appointment.status === 'completed' && isAppointmentPassed(appointment.date, appointment.time) && (
+                      {appointment.status !== 'cancelled' && isAppointmentPassed(appointment.date, appointment.time) && (
                         <div className="mt-4">
                           {appointment.rating ? (
                             <div className="flex items-center space-x-2">

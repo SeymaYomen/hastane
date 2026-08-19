@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Users, Search, Phone, MessageSquareText, Loader2, ChevronRight, ChevronLeft, AlertCircle } from 'lucide-react';
+import {
+  Loader2,
+  ChevronRight,
+  ChevronLeft,
+  AlertCircle
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import AppointmentQRCode from '../components/AppointmentQRCode';
 import { useData } from '../contexts/DataContext';
+import { supabase } from '../lib/supabase';
 
 // Time slots by day type
 const timeSlots = {
@@ -11,7 +16,7 @@ const timeSlots = {
 };
 
 const AppointmentPage = () => {
-  const { doctors, departments } = useData();
+  const { doctors, departments, refreshData } = useData();
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [selectedDoctor, setSelectedDoctor] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
@@ -95,11 +100,7 @@ const AppointmentPage = () => {
   }, [selectedDate, selectedDoctor, doctors]);
 
   // Function to check if a date is available
-  const isDateAvailable = (date: Date) => {
-    const dayName = date.toLocaleDateString('tr-TR', { weekday: 'long' });
-    const doctor = doctors.find(d => d.full_name === selectedDoctor);
-    return doctor ? doctor.working_days.includes(dayName) : false;
-  };
+  
 
   // Function to format date for display
   const formatDateForDisplay = (dateStr: string) => {
@@ -166,52 +167,104 @@ const AppointmentPage = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateStep(3)) return;
-    
-    setIsSubmitting(true);
+  e.preventDefault();
 
-    const existingAppointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-    const isFirstVisit = !existingAppointments.some(
-      (app: any) => app.department === selectedDepartment && app.patientTCKN === patientTCKN
+  if (!validateStep(3)) return;
+
+  setIsSubmitting(true);
+
+  try {
+    const {
+      data: { user },
+      error: userError
+    } = await supabase.auth.getUser();
+
+    if (userError) {
+      throw userError;
+    }
+
+    if (!user) {
+      throw new Error('Oturum bilgisi bulunamadı. Lütfen tekrar giriş yapın.');
+    }
+
+    const doctor = doctors.find(
+      (item) =>
+        item.full_name === selectedDoctor &&
+        item.department === selectedDepartment
     );
 
-    const appointmentPrice = isFirstVisit ? 
-      departmentPrices[selectedDepartment] : 
-      departmentPrices[selectedDepartment] * 0.8;
-
-    const newAppointment = {
-      id: Date.now().toString(),
-      department: selectedDepartment,
-      doctor: selectedDoctor,
-      date: selectedDate,
-      time: selectedTime,
-      status: 'upcoming',
-      patientName,
-      patientPhone,
-      patientEmail,
-      patientTCKN,
-      notes,
-      price: appointmentPrice,
-      isFirstVisit
-    };
-
-    try {
-      const updatedAppointments = [...existingAppointments, newAppointment];
-      localStorage.setItem('appointments', JSON.stringify(updatedAppointments));
-      setIsSubmitting(false);
-      setIsSuccess(true);
-      
-      setTimeout(() => {
-        navigate('/my-appointments');
-      }, 2000);
-    } catch (error) {
-      console.error('Error saving appointment:', error);
-      setIsSubmitting(false);
-      alert('Randevu kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.');
+    if (!doctor) {
+      throw new Error('Seçilen doktor veritabanında bulunamadı.');
     }
-  };
+
+    const departmentDoctorIds = doctors
+      .filter((item) => item.department === selectedDepartment)
+      .map((item) => item.id);
+
+    let isFirstVisit = true;
+
+    if (departmentDoctorIds.length > 0) {
+      const {
+        data: previousAppointments,
+        error: previousAppointmentsError
+      } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('user_id', user.id)
+        .in('doctor_id', departmentDoctorIds)
+        .limit(1);
+
+      if (previousAppointmentsError) {
+        throw previousAppointmentsError;
+      }
+
+      isFirstVisit =
+        !previousAppointments || previousAppointments.length === 0;
+    }
+
+    const basePrice = departmentPrices[selectedDepartment] ?? 0;
+
+    const appointmentPrice = isFirstVisit
+      ? basePrice
+      : basePrice * 0.8;
+
+    const { error: insertError } = await supabase
+      .from('appointments')
+      .insert({
+        user_id: user.id,
+        doctor_id: doctor.id,
+        date: selectedDate,
+        time: selectedTime,
+        status: 'upcoming',
+        notes: notes.trim() || null,
+        price: appointmentPrice,
+        is_first_visit: isFirstVisit
+      });
+
+    if (insertError) {
+      throw insertError;
+    }
+
+    await refreshData();
+
+    setIsSuccess(true);
+
+    setTimeout(() => {
+      navigate('/my-appointments');
+    }, 2000);
+  } catch (error) {
+    console.error('Randevu kaydedilirken hata:', error);
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Randevu kaydedilirken bir hata oluştu.';
+
+    alert(message);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const renderStepContent = () => {
     switch (step) {
@@ -298,7 +351,8 @@ const AppointmentPage = () => {
                 type="date"
                 value={selectedDate}
                 onChange={(e) => {
-                  const date = new Date(e.target.value);
+                  setSelectedDate(e.target.value);
+                  setSelectedTime('');
                   setSelectedDate(e.target.value);
                   setSelectedTime('');
                 }}
