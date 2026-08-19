@@ -4,10 +4,12 @@ import type { Database } from '../types/supabase';
 
 type Doctor = Database['public']['Tables']['doctors']['Row'];
 type Appointment = Database['public']['Tables']['appointments']['Row'];
+type Department = Database['public']['Tables']['departments']['Row'];
 
 interface DataContextType {
   doctors: Doctor[];
   appointments: Appointment[];
+  departments: Department[];
   refreshData: () => Promise<void>;
   loading: boolean;
   error: string | null;
@@ -19,6 +21,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'failed'>('connecting');
@@ -83,6 +86,32 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const fetchDepartments = async () => {
+    try {
+      console.log('Fetching departments...');
+      const { data, error } = await supabase
+        .from('departments')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order');
+
+      if (error) {
+        console.error('Bölümler yüklenirken hata:', error);
+        throw new Error(`Veritabanı hatası: ${error.message}`);
+      }
+
+      console.log('Departments fetched successfully:', data?.length || 0, 'records');
+      setDepartments(data || []);
+    } catch (err) {
+      console.error('Fetch departments error:', err);
+
+      if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
+        throw new Error('Supabase bağlantısı kurulamadı. Lütfen internet bağlantınızı kontrol edin.');
+      }
+      throw err;
+    }
+  };
+
   const refreshData = async () => {
     try {
       setLoading(true);
@@ -98,7 +127,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       console.log('Connection test passed, fetching data...');
-      await Promise.all([fetchDoctors(), fetchAppointments()]);
+      await Promise.all([fetchDoctors(), fetchAppointments(), fetchDepartments()]);
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Bilinmeyen bir hata oluştu';
@@ -131,6 +160,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     // Set up real-time subscriptions only after successful connection
     let doctorsSubscription: any;
     let appointmentsSubscription: any;
+    let departmentsSubscription: any;
 
     const setupSubscriptions = () => {
       if (connectionStatus === 'connected') {
@@ -157,6 +187,17 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
             }
           )
           .subscribe();
+
+        departmentsSubscription = supabase
+          .channel('departments_changes')
+          .on('postgres_changes',
+            { event: '*', schema: 'public', table: 'departments' },
+            (payload) => {
+              console.log('Departments table changed:', payload);
+              refreshData();
+            }
+          )
+          .subscribe();
       }
     };
 
@@ -174,6 +215,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         console.log('Cleaning up appointments subscription');
         appointmentsSubscription.unsubscribe();
       }
+      if (departmentsSubscription) {
+        console.log('Cleaning up departments subscription');
+        departmentsSubscription.unsubscribe();
+      }
     };
   }, [connectionStatus]);
 
@@ -181,6 +226,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     <DataContext.Provider value={{ 
       doctors, 
       appointments, 
+      departments,
       refreshData, 
       loading, 
       error,
