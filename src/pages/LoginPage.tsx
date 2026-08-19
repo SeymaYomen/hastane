@@ -104,12 +104,9 @@ const LoginPage = () => {
     try {
       if (isLogin) {
         const { data, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-          options: {
-            persistSession: true
-          }
-        });
+  email,
+  password
+});
 
         if (signInError) {
           if (signInError.message.includes('Invalid login credentials')) {

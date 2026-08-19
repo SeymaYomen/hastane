@@ -145,82 +145,54 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
-    // Initial data load with delay to ensure environment is ready
-    const initializeData = async () => {
-      console.log('Initializing data context...');
-      
-      // Small delay to ensure environment variables are loaded
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      await refreshData();
-    };
+  const initializeData = async () => {
+    console.log('Initializing data context...');
 
-    initializeData();
+    await new Promise(resolve => setTimeout(resolve, 100));
+    await refreshData();
+  };
 
-    // Set up real-time subscriptions only after successful connection
-    let doctorsSubscription: any;
-    let appointmentsSubscription: any;
-    let departmentsSubscription: any;
+  initializeData();
 
-    const setupSubscriptions = () => {
-      if (connectionStatus === 'connected') {
-        console.log('Setting up real-time subscriptions...');
-        
-        doctorsSubscription = supabase
-          .channel('doctors_changes')
-          .on('postgres_changes', 
-            { event: '*', schema: 'public', table: 'doctors' },
-            (payload) => {
-              console.log('Doctors table changed:', payload);
-              refreshData();
-            }
-          )
-          .subscribe();
-
-        appointmentsSubscription = supabase
-          .channel('appointments_changes')
-          .on('postgres_changes',
-            { event: '*', schema: 'public', table: 'appointments' },
-            (payload) => {
-              console.log('Appointments table changed:', payload);
-              refreshData();
-            }
-          )
-          .subscribe();
-
-        departmentsSubscription = supabase
-          .channel('departments_changes')
-          .on('postgres_changes',
-            { event: '*', schema: 'public', table: 'departments' },
-            (payload) => {
-              console.log('Departments table changed:', payload);
-              refreshData();
-            }
-          )
-          .subscribe();
+  const doctorsSubscription = supabase
+    .channel('doctors_changes')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'doctors' },
+      () => {
+        fetchDoctors();
       }
-    };
+    )
+    .subscribe();
 
-    // Setup subscriptions when connection is established
-    if (connectionStatus === 'connected') {
-      setupSubscriptions();
-    }
+  const appointmentsSubscription = supabase
+    .channel('appointments_changes')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'appointments' },
+      () => {
+        fetchAppointments();
+      }
+    )
+    .subscribe();
 
-    return () => {
-      if (doctorsSubscription) {
-        console.log('Cleaning up doctors subscription');
-        doctorsSubscription.unsubscribe();
+  const departmentsSubscription = supabase
+    .channel('departments_changes')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'departments' },
+      () => {
+        fetchDepartments();
       }
-      if (appointmentsSubscription) {
-        console.log('Cleaning up appointments subscription');
-        appointmentsSubscription.unsubscribe();
-      }
-      if (departmentsSubscription) {
-        console.log('Cleaning up departments subscription');
-        departmentsSubscription.unsubscribe();
-      }
-    };
-  }, [connectionStatus]);
+    )
+    .subscribe();
+
+  return () => {
+    doctorsSubscription.unsubscribe();
+    appointmentsSubscription.unsubscribe();
+    departmentsSubscription.unsubscribe();
+  };
+}, []);
 
   return (
     <DataContext.Provider value={{ 
