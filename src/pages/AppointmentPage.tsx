@@ -66,6 +66,36 @@ const AppointmentPage = () => {
       localStorage.removeItem('selectedDepartment');
     }
   }, []);
+  useEffect(() => {
+  const loadPatientProfile = async () => {
+    try {
+      const {
+        data: { user },
+        error: userError
+      } = await supabase.auth.getUser();
+
+      if (userError) throw userError;
+      if (!user) return;
+
+      const { data: profile, error: profileError } = await supabase
+        .from('users')
+        .select('full_name, phone, email, tckn')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      setPatientName(profile.full_name || '');
+      setPatientPhone(profile.phone || '');
+      setPatientEmail(profile.email || user.email || '');
+      setPatientTCKN(profile.tckn || '');
+    } catch (error) {
+      console.error('Hasta profili yüklenirken hata:', error);
+    }
+  };
+
+  loadPatientProfile();
+}, []);
 
   useEffect(() => {
     if (selectedDate && selectedDoctor) {
@@ -98,6 +128,7 @@ const AppointmentPage = () => {
       }
     }
   }, [selectedDate, selectedDoctor, doctors]);
+  
 
   // Function to check if a date is available
   
@@ -447,6 +478,7 @@ const AppointmentPage = () => {
               <input
                 type="text"
                 value={patientName}
+                readOnly
                 onChange={(e) => setPatientName(e.target.value)}
                 placeholder="Örn: Ahmet Yılmaz"
                 className={`mt-1 block w-full rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 ${
@@ -465,6 +497,7 @@ const AppointmentPage = () => {
               <input
                 type="text"
                 value={patientTCKN}
+                readOnly
                 onChange={(e) => {
                   const value = e.target.value.replace(/\D/g, '');
                   if (value.length <= 11) setPatientTCKN(value);
@@ -486,6 +519,7 @@ const AppointmentPage = () => {
               <input
                 type="tel"
                 value={patientPhone}
+                readOnly
                 onChange={(e) => {
                   const value = e.target.value.replace(/\D/g, '');
                   if (value.length <= 11) setPatientPhone(value);
@@ -507,6 +541,7 @@ const AppointmentPage = () => {
               <input
                 type="email"
                 value={patientEmail}
+                readOnly
                 onChange={(e) => setPatientEmail(e.target.value)}
                 placeholder="ornek@email.com"
                 className={`mt-1 block w-full rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 ${
@@ -524,6 +559,7 @@ const AppointmentPage = () => {
               </label>
               <textarea
                 value={notes}
+                readOnly
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
                 placeholder="Doktorunuza iletmek istediğiniz bilgiler..."
