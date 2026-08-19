@@ -32,6 +32,7 @@ const AppointmentPage = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const navigate = useNavigate();
   const [availableTimes, setAvailableTimes] = useState<string[]>([]);
+  const [bookedTimes, setBookedTimes] = useState<string[]>([]);
   const [showUnavailableMessage, setShowUnavailableMessage] = useState(false);
   const [unavailableDoctor, setUnavailableDoctor] = useState('');
   const [availableDoctors, setAvailableDoctors] = useState<string[]>([]);
@@ -66,6 +67,43 @@ const AppointmentPage = () => {
       localStorage.removeItem('selectedDepartment');
     }
   }, []);
+  useEffect(() => {
+  const loadBookedTimes = async () => {
+    if (!selectedDate || !selectedDoctor) {
+      setBookedTimes([]);
+      return;
+    }
+
+    const doctor = doctors.find(
+      (item) => item.full_name === selectedDoctor
+    );
+
+    if (!doctor) {
+      setBookedTimes([]);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('get_booked_times', {
+        p_doctor_id: doctor.id,
+        p_date: selectedDate
+      });
+
+      if (error) throw error;
+
+      const times = (data || []).map((item: { booked_time: string }) =>
+        item.booked_time.slice(0, 5)
+      );
+
+      setBookedTimes(times);
+    } catch (error) {
+      console.error('Dolu saatler alınırken hata oluştu:', error);
+      setBookedTimes([]);
+    }
+  };
+
+  loadBookedTimes();
+}, [selectedDate, selectedDoctor, doctors]);
   useEffect(() => {
   const loadPatientProfile = async () => {
     try {
@@ -273,8 +311,14 @@ const AppointmentPage = () => {
       });
 
     if (insertError) {
-      throw insertError;
-    }
+  if (insertError.code === '23505') {
+    throw new Error(
+      'Bu randevu saati az önce başka bir hasta tarafından alındı. Lütfen başka bir saat seçin.'
+    );
+  }
+
+  throw insertError;
+}
 
     await refreshData();
 
@@ -450,7 +494,9 @@ const AppointmentPage = () => {
                 disabled={!selectedDate || showUnavailableMessage}
               >
                 <option value="">Saat Seçiniz</option>
-                {availableTimes.map((time) => (
+                {availableTimes
+  .filter((time) => !bookedTimes.includes(time))
+  .map((time) => (
                   <option key={time} value={time}>{time}</option>
                 ))}
               </select>
