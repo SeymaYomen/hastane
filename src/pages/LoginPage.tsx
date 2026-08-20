@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Lock, Mail, User, ArrowRight, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getCurrentUserRole } from '../services/auth/roleService';
 
 const LoginPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -116,10 +117,19 @@ const LoginPage = () => {
         }
 
         if (data.user) {
-          localStorage.setItem('isAuthenticated', 'true');
-          const from = location.state?.from?.pathname || "/appointment";
-          navigate(from);
-        }
+  localStorage.setItem('isAuthenticated', 'true');
+
+  const role = await getCurrentUserRole(data.user.id);
+
+  if (role === 'doctor') {
+    navigate('/doctor');
+  } else if (role === 'admin') {
+    navigate('/admin');
+  } else {
+    const from = location.state?.from?.pathname || '/appointment';
+    navigate(from);
+  }
+}
       } else {
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,

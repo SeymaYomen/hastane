@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { DataProvider } from './contexts/DataContext';
@@ -13,6 +13,8 @@ import MyAppointmentsPage from './pages/MyAppointmentsPage';
 import ProfilePage from './pages/ProfilePage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import PrivateRoute from './components/PrivateRoute';
+import RoleRoute from './components/RoleRoute';
+import DoctorDashboard from './pages/DoctorDashboard';
 import ChatbotButton from './components/Chatbot/ChatbotButton';
 import ScrollToTop from './components/ScrollToTop';
 import './App.css';
@@ -53,6 +55,14 @@ function App() {
                   </PrivateRoute>
                 } 
               />
+              <Route
+  path="/doctor"
+  element={
+    <RoleRoute allowedRoles={['doctor']}>
+      <DoctorDashboard />
+    </RoleRoute>
+  }
+/>
               <Route path="/departments" element={<DepartmentsPage />} />
               <Route path="/doctors" element={<DoctorsPage />} />
             </Routes>
