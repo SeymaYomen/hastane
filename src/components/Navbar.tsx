@@ -5,11 +5,13 @@ import ThemeSwitcher from './ThemeSwitcher';
 import { supabase } from '../lib/supabase';
 import { clinicConfig } from '../config/clinicConfig';
 import { useTheme } from '../contexts/ThemeContext';
+import { getCurrentUserRole, type UserRole } from '../services/auth/roleService';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [role, setRole] = useState<UserRole | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { theme } = useTheme();
   const location = useLocation();
@@ -21,18 +23,41 @@ const Navbar = () => {
   const toggleMenu = () => setIsOpen(!isOpen);
 
   useEffect(() => {
+    let mounted = true;
+    let roleRequest = 0;
+
+    const applySession = async (session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']) => {
+      const request = ++roleRequest;
+      if (!mounted) return;
+      setIsAuthenticated(Boolean(session));
+      setRole(null);
+
+      if (!session?.user) return;
+
+      try {
+        const currentRole = await getCurrentUserRole(session.user.id);
+        if (mounted && request === roleRequest) setRole(currentRole);
+      } catch (error) {
+        console.error('Navbar rolü yüklenemedi:', error);
+        if (mounted && request === roleRequest) setRole(null);
+      }
+    };
+
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      setIsAuthenticated(!!session);
+      await applySession(session);
     };
 
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session);
+      void applySession(session);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -57,13 +82,18 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    setRole(null);
     localStorage.removeItem('isAuthenticated');
     navigate('/');
   };
 
   const navLinks = [
     { name: 'Ana Sayfa', path: '/' },
-    { name: 'Randevu Al', path: '/appointment' },
+    ...(role === 'doctor'
+      ? [{ name: 'Doktor Paneli', path: '/doctor' }]
+      : role === 'patient' || !isAuthenticated
+        ? [{ name: 'Randevu Al', path: '/appointment' }]
+        : []),
     { name: 'Bölümler', path: '/departments' },
     { name: 'Doktorlarımız', path: '/doctors' },
   ];
@@ -147,6 +177,15 @@ const Navbar = () => {
 
                 {showUserMenu && (
                   <div className={`absolute right-0 mt-2 w-52 rounded-2xl py-2 shadow-lg backdrop-blur-md ${isHighContrast ? 'border border-white bg-black' : isLight ? 'border border-[#0F172A]/12 bg-white/95' : 'border border-white/15 bg-[#0D121B]/95'}`}>
+                    {role === 'doctor' && (
+                      <Link
+                        to="/doctor"
+                        className={`block px-4 py-2 transition-colors ${isHighContrast ? 'text-white hover:bg-white hover:text-black' : isLight ? 'text-[#0F172A] hover:bg-[#F1F5F9]' : 'text-[#E2E8F0] hover:bg-white/10'}`}
+                      >
+                        <Stethoscope size={18} className="inline-block mr-2" />
+                        Doktor Paneli
+                      </Link>
+                    )}
                     <Link
                       to="/profile"
                       className={`block px-4 py-2 transition-colors ${isHighContrast ? 'text-white hover:bg-white hover:text-black' : isLight ? 'text-[#0F172A] hover:bg-[#F1F5F9]' : 'text-[#E2E8F0] hover:bg-white/10'}`}
@@ -154,13 +193,15 @@ const Navbar = () => {
                       <User size={18} className="inline-block mr-2" />
                       Profilim
                     </Link>
-                    <Link
-                      to="/my-appointments"
-                      className={`block px-4 py-2 transition-colors ${isHighContrast ? 'text-white hover:bg-white hover:text-black' : isLight ? 'text-[#0F172A] hover:bg-[#F1F5F9]' : 'text-[#E2E8F0] hover:bg-white/10'}`}
-                    >
-                      <Calendar size={18} className="inline-block mr-2" />
-                      Randevularım
-                    </Link>
+                    {role === 'patient' && (
+                      <Link
+                        to="/my-appointments"
+                        className={`block px-4 py-2 transition-colors ${isHighContrast ? 'text-white hover:bg-white hover:text-black' : isLight ? 'text-[#0F172A] hover:bg-[#F1F5F9]' : 'text-[#E2E8F0] hover:bg-white/10'}`}
+                      >
+                        <Calendar size={18} className="inline-block mr-2" />
+                        Randevularım
+                      </Link>
+                    )}
                     <button
                       onClick={handleLogout}
                       className={`w-full text-left px-4 py-2 transition-colors ${isHighContrast ? 'text-rose-300 hover:bg-white hover:text-black' : isLight ? 'text-red-600 hover:bg-[#F1F5F9]' : 'text-red-300 hover:bg-white/10'}`}
@@ -225,6 +266,15 @@ const Navbar = () => {
               ))}
               {isAuthenticated ? (
                 <>
+                  {role === 'doctor' && (
+                    <Link
+                      to="/doctor"
+                      className={`flex items-center space-x-2 py-2 px-4 rounded-lg transition-colors ${isHighContrast ? 'text-white hover:bg-white hover:text-black' : isLight ? 'text-[#334155] hover:bg-[#F1F5F9] hover:text-[#0F172A]' : 'text-white/90 hover:bg-white/10 hover:text-white'}`}
+                    >
+                      <Stethoscope size={18} />
+                      <span>Doktor Paneli</span>
+                    </Link>
+                  )}
                   <Link
                     to="/profile"
                     className={`flex items-center space-x-2 py-2 px-4 rounded-lg transition-colors ${isHighContrast ? 'text-white hover:bg-white hover:text-black' : isLight ? 'text-[#334155] hover:bg-[#F1F5F9] hover:text-[#0F172A]' : 'text-white/90 hover:bg-white/10 hover:text-white'}`}
@@ -232,13 +282,15 @@ const Navbar = () => {
                     <User size={18} />
                     <span>Profilim</span>
                   </Link>
-                  <Link
-                    to="/my-appointments"
-                    className={`flex items-center space-x-2 py-2 px-4 rounded-lg transition-colors ${isHighContrast ? 'text-white hover:bg-white hover:text-black' : isLight ? 'text-[#334155] hover:bg-[#F1F5F9] hover:text-[#0F172A]' : 'text-white/90 hover:bg-white/10 hover:text-white'}`}
-                  >
-                    <Calendar size={18} />
-                    <span>Randevularım</span>
-                  </Link>
+                  {role === 'patient' && (
+                    <Link
+                      to="/my-appointments"
+                      className={`flex items-center space-x-2 py-2 px-4 rounded-lg transition-colors ${isHighContrast ? 'text-white hover:bg-white hover:text-black' : isLight ? 'text-[#334155] hover:bg-[#F1F5F9] hover:text-[#0F172A]' : 'text-white/90 hover:bg-white/10 hover:text-white'}`}
+                    >
+                      <Calendar size={18} />
+                      <span>Randevularım</span>
+                    </Link>
+                  )}
                   <button
                     onClick={handleLogout}
                     className={`flex items-center justify-center space-x-2 py-2 px-4 rounded-lg transition-colors duration-300 ${isHighContrast ? 'border border-white text-white hover:bg-white hover:text-black' : isLight ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-600/80 text-white hover:bg-red-600'}`}

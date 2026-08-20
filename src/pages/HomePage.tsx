@@ -1,13 +1,40 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
 import { clinicConfig } from '../config/clinicConfig';
 import { useTheme } from '../contexts/ThemeContext';
+import { supabase } from '../lib/supabase';
+import { getCurrentUserRole } from '../services/auth/roleService';
 
 const HomePage = () => {
   const prefersReducedMotion = useReducedMotion();
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const isHighContrast = theme === 'high-contrast';
+  const [isDoctor, setIsDoctor] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadRole = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          if (mounted) setIsDoctor(false);
+          return;
+        }
+
+        const role = await getCurrentUserRole(session.user.id);
+        if (mounted) setIsDoctor(role === 'doctor');
+      } catch (error) {
+        console.error('Ana sayfa rolü yüklenemedi:', error);
+        if (mounted) setIsDoctor(false);
+      }
+    };
+
+    loadRole();
+    return () => { mounted = false; };
+  }, []);
 
   const appointmentPreview = [
     { date: '22 Ağu', department: 'Kardiyoloji', doctor: 'Dr. A. Demir', time: '10:30', status: 'Onaylı' },
@@ -171,10 +198,10 @@ const HomePage = () => {
           >
             <motion.div whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}>
               <Link
-                to="/appointment"
+                to={isDoctor ? '/doctor' : '/appointment'}
                 className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#2DD4BF] via-[#22D3EE] to-[#3B82F6] px-8 py-3 text-base font-semibold text-[#070A0F] shadow-[0_10px_35px_rgba(34,211,238,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2"
               >
-                Randevu Al {'->'}
+                {isDoctor ? 'Doktor Paneline Git' : 'Randevu Al'} {'->'}
               </Link>
             </motion.div>
             <motion.div whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}>
