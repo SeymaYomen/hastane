@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Star } from 'lucide-react';
+import { Calendar, Clock, Sparkles, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AppointmentQRCode from '../components/AppointmentQRCode';
 import { supabase } from '../lib/supabase';
+import {
+  getMyFollowUpPlans,
+  type PatientFollowUpPlan,
+} from '../services/patient/followUpService';
 
 interface Appointment {
   id: string;
@@ -116,6 +120,7 @@ const MyAppointmentsPage = () => {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
+  const [followUpPlans, setFollowUpPlans] = useState<Record<string, PatientFollowUpPlan>>({});
 
   useEffect(() => {
   const loadAppointments = async () => {
@@ -197,6 +202,26 @@ const MyAppointmentsPage = () => {
 
   loadAppointments();
 }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadFollowUpPlans = async () => {
+      try {
+        const plans = await getMyFollowUpPlans();
+        if (mounted) {
+          setFollowUpPlans(Object.fromEntries(plans.map((plan) => [plan.appointment_id, plan])));
+        }
+      } catch (error) {
+        console.error('Takip planları yüklenirken hata oluştu:', error);
+      }
+    };
+
+    loadFollowUpPlans();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   function handleCancelClick(id: string) {
     setSelectedAppointmentId(id);
@@ -432,6 +457,33 @@ const pastAppointments = appointments
                         </span>
                       </div>
                       
+                      {appointment.status === 'completed' && followUpPlans[appointment.id] && (
+                        <div className="mt-5 rounded-xl border border-cyan-700/60 bg-gradient-to-br from-cyan-950/50 to-violet-950/40 p-4">
+                          <h4 className="flex items-center gap-2 font-semibold text-cyan-200">
+                            <Sparkles className="h-4 w-4" aria-hidden="true" />
+                            Takip Planı
+                          </h4>
+                          {followUpPlans[appointment.id].follow_up_required ? (
+                            <div className="mt-3 space-y-2 text-sm text-gray-200">
+                              <p>Doktorunuz kontrol önerdi.</p>
+                              {followUpPlans[appointment.id].follow_up_date && (
+                                <p>
+                                  <span className="font-medium text-cyan-200">Kontrol tarihi:</span>{' '}
+                                  {formatDate(followUpPlans[appointment.id].follow_up_date!)}
+                                </p>
+                              )}
+                              {followUpPlans[appointment.id].follow_up_note && (
+                                <p className="whitespace-pre-wrap rounded-lg bg-dark-900/50 p-3 text-gray-200">
+                                  {followUpPlans[appointment.id].follow_up_note}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="mt-3 text-sm text-gray-300">Ek kontrol planı bulunmuyor.</p>
+                          )}
+                        </div>
+                      )}
+
                       {appointment.status !== 'cancelled' && isAppointmentPassed(appointment.date, appointment.time) && (
                         <div className="mt-4">
                           {appointment.rating ? (

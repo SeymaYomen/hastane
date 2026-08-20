@@ -5,13 +5,14 @@ import {
   Sparkles,
   Stethoscope,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import {
   getDoctorDayAppointments,
   getLocalDateString,
   type DoctorDayAppointment,
 } from '../services/doctor/doctorService';
 const DoctorDashboard = () => {
-      const [appointments, setAppointments] = useState<DoctorDayAppointment[]>([]);
+  const [appointments, setAppointments] = useState<DoctorDayAppointment[]>([]);
   const [loadingAppointments, setLoadingAppointments] = useState(true);
   const [appointmentsError, setAppointmentsError] = useState('');
 
@@ -126,6 +127,20 @@ const DoctorDashboard = () => {
             {appointment.appointment_notes}
           </p>
         )}
+        <div className="mt-4 border-t border-slate-200 pt-3 dark:border-slate-700">
+          {appointment.appointment_status === 'cancelled' ? (
+            <span className="inline-flex rounded-lg bg-red-100 px-4 py-2 text-sm font-medium text-red-700 dark:bg-red-950/50 dark:text-red-300">
+              İptal edildi
+            </span>
+          ) : (
+            <Link
+              to={`/doctor/appointment/${appointment.appointment_id}`}
+              className="inline-flex rounded-lg bg-gradient-to-r from-cyan-600 to-violet-600 px-4 py-2 text-sm font-semibold text-white hover:from-cyan-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 dark:focus:ring-offset-slate-950"
+            >
+              Muayeneyi Aç
+            </Link>
+          )}
+        </div>
       </div>
     ))}
 </div>
@@ -143,7 +158,7 @@ const DoctorDashboard = () => {
             </h2>
 
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              Muayene notları ve kontrol planları bu alandan yönetilecek.
+              Günlük randevularınızdan muayene kayıtlarını ve kontrol planlarını yönetin.
             </p>
           </div>
 
@@ -174,27 +189,6 @@ const DoctorDashboard = () => {
             </div>
           </div>
 
-        </div>
-
-        {/* Ana çalışma alanı */}
-        <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
-            Günlük çalışma alanı
-          </h2>
-
-          <div className="mt-6 flex min-h-48 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 dark:border-slate-700 dark:bg-slate-950/50">
-            <div className="text-center">
-              <CalendarDays className="mx-auto mb-3 h-8 w-8 text-slate-400" />
-
-              <p className="font-medium text-slate-700 dark:text-slate-300">
-                Randevu verileri bir sonraki adımda bağlanacak
-              </p>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Önce doktor hesabını gerçek doktor kaydıyla eşleştireceğiz.
-              </p>
-            </div>
-          </div>
         </div>
 
       </div>

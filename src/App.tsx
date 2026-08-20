@@ -15,6 +15,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import PrivateRoute from './components/PrivateRoute';
 import RoleRoute from './components/RoleRoute';
 import DoctorDashboard from './pages/DoctorDashboard';
+import DoctorAppointmentDetailPage from './pages/DoctorAppointmentDetailPage';
 import ChatbotButton from './components/Chatbot/ChatbotButton';
 import ScrollToTop from './components/ScrollToTop';
 import './App.css';
@@ -56,13 +57,21 @@ function App() {
                 } 
               />
               <Route
-  path="/doctor"
-  element={
-    <RoleRoute allowedRoles={['doctor']}>
-      <DoctorDashboard />
-    </RoleRoute>
-  }
-/>
+                path="/doctor"
+                element={
+                  <RoleRoute allowedRoles={['doctor']}>
+                    <DoctorDashboard />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/doctor/appointment/:appointmentId"
+                element={
+                  <RoleRoute allowedRoles={['doctor']}>
+                    <DoctorAppointmentDetailPage />
+                  </RoleRoute>
+                }
+              />
               <Route path="/departments" element={<DepartmentsPage />} />
               <Route path="/doctors" element={<DoctorsPage />} />
             </Routes>
