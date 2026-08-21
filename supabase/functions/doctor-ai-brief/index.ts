@@ -59,8 +59,8 @@ Summary must only restate supplied records and must not introduce a clinical fac
 All user-facing output must be written in Turkish, even when the source record is in English.
 Write summary, every keyPoints[].text value, and every limitations item in Turkish.
 Keep evidenceRefs values such as V1 and V2 unchanged. Use clear, professional, neutral Turkish clinical terminology.
-Only include limitations that are genuinely missing or constrained in the supplied context.
-Do not present fields that were never supplied, such as medication data, as clinical findings or generic limitations.
+Limitations must only mention missing information that is explicitly expected by the supplied context schema.
+Do not mention laboratory tests, imaging, medications, ECG, vital signs, or other clinical domains merely because they were not provided in the context.
 The output supports physician preparation and is not a clinical decision.`;
 const outputSchema = {
   type: 'object', additionalProperties: false,
