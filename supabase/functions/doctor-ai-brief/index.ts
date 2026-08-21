@@ -132,7 +132,7 @@ async function generateWithGemini(prompt: string, model: string): Promise<Provid
   if (!apiKey) throw new HttpError(503, 'AI servisi henüz yapılandırılmadı.');
   const response = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ systemInstruction: { parts: [{ text: systemInstruction }] }, contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', responseJsonSchema: outputSchema, maxOutputTokens: 2048 } }),
+    body: JSON.stringify({ systemInstruction: { parts: [{ text: systemInstruction }] }, contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', responseJsonSchema: outputSchema, maxOutputTokens: 2048, thinkingConfig: { thinkingLevel: 'low' } } }),
   });
   if (!response.ok) throw new HttpError(502, 'AI sağlayıcısı isteği tamamlayamadı.');
   const payload = await response.json() as Record<string, unknown>;
