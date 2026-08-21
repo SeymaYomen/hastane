@@ -29,6 +29,18 @@ type Brief = {
   followUp: { required: boolean; date: string | null; note: string | null };
   limitations: string[];
 };
+type AIOutput = Omit<Brief, 'followUp'>;
+type ValidationReason =
+  | 'invalid_shape'
+  | 'invalid_summary'
+  | 'invalid_key_points'
+  | 'invalid_evidence_ref'
+  | 'invalid_follow_up'
+  | 'invalid_limitations'
+  | 'output_too_large'
+  | 'uuid_leak'
+  | 'disallowed_claim';
+type ValidationResult = { ok: true; brief: AIOutput } | { ok: false; reason: ValidationReason };
 type ProviderResult = { value: unknown; inputTokens: number; outputTokens: number };
 
 const RATE_LIMIT_PER_MINUTE = 5;
@@ -42,14 +54,14 @@ const systemInstruction = `You are a clinical information summarization assistan
 Use only the provided verified records. Do not diagnose, recommend treatment, or infer missing facts.
 Do not invent medications, diseases, laboratory values, dates, symptoms, or follow-up instructions.
 If information is missing, state that it is unavailable. Every key point must cite supplied record references.
+Summary must only restate supplied records and must not introduce a clinical fact absent from keyPoints.
 The output supports physician preparation and is not a clinical decision.`;
 const outputSchema = {
   type: 'object', additionalProperties: false,
-  required: ['summary', 'keyPoints', 'followUp', 'limitations'],
+  required: ['summary', 'keyPoints', 'limitations'],
   properties: {
-    summary: { type: 'string', maxLength: 1200 },
-    keyPoints: { type: 'array', maxItems: 8, items: { type: 'object', additionalProperties: false, required: ['text', 'evidenceRefs'], properties: { text: { type: 'string', maxLength: 500 }, evidenceRefs: { type: 'array', maxItems: 5, items: { type: 'string' } } } } },
-    followUp: { type: 'object', additionalProperties: false, required: ['required', 'date', 'note'], properties: { required: { type: 'boolean' }, date: { type: ['string', 'null'] }, note: { type: ['string', 'null'], maxLength: 500 } } },
+    summary: { type: 'string', minLength: 1, maxLength: 1200 },
+    keyPoints: { type: 'array', maxItems: 8, items: { type: 'object', additionalProperties: false, required: ['text', 'evidenceRefs'], properties: { text: { type: 'string', minLength: 1, maxLength: 500 }, evidenceRefs: { type: 'array', minItems: 1, maxItems: 5, items: { type: 'string' } } } } },
     limitations: { type: 'array', maxItems: 6, items: { type: 'string', maxLength: 300 } },
   },
 };
@@ -94,7 +106,9 @@ async function generateWithOpenAI(prompt: string, model: string): Promise<Provid
   if (!response.ok) throw new HttpError(502, 'AI sağlayıcısı isteği tamamlayamadı.');
   const payload = await response.json() as Record<string, unknown>;
   const usage = (payload.usage ?? {}) as Record<string, unknown>;
-  return { value: JSON.parse(responseText(payload)), inputTokens: Number(usage.input_tokens ?? 0), outputTokens: Number(usage.output_tokens ?? 0) };
+  let value: unknown = null;
+  try { value = JSON.parse(responseText(payload)); } catch { /* Validator reports invalid_shape. */ }
+  return { value, inputTokens: Number(usage.input_tokens ?? 0), outputTokens: Number(usage.output_tokens ?? 0) };
 }
 
 async function generateWithGemini(prompt: string, model: string): Promise<ProviderResult> {
@@ -110,31 +124,42 @@ async function generateWithGemini(prompt: string, model: string): Promise<Provid
   const text = candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new HttpError(502, 'AI servisi geçerli bir yanıt döndürmedi.');
   const usage = (payload.usageMetadata ?? {}) as Record<string, unknown>;
-  return { value: JSON.parse(text), inputTokens: Number(usage.promptTokenCount ?? 0), outputTokens: Number(usage.candidatesTokenCount ?? 0) };
+  let value: unknown = null;
+  try { value = JSON.parse(text); } catch { /* Validator reports invalid_shape. */ }
+  return { value, inputTokens: Number(usage.promptTokenCount ?? 0), outputTokens: Number(usage.candidatesTokenCount ?? 0) };
 }
 
-const safeFallback = (): Brief => ({
+const getVerifiedFollowUp = (visits: PastVisit[]): Brief['followUp'] => {
+  const source = visits.find((visit) => visit.followUpRequired);
+  return source
+    ? { required: true, date: source.followUpDate, note: source.followUpNote }
+    : { required: false, date: null, note: null };
+};
+
+const safeFallback = (followUp: Brief['followUp']): Brief => ({
   summary: 'Doğrulanmış kayıtlardan güvenli bir özet oluşturulamadı.',
-  keyPoints: [], followUp: { required: false, date: null, note: null },
+  keyPoints: [], followUp,
   limitations: ['Klinik kayıtları doğrudan inceleyin.'],
 });
 
-function validateBrief(value: unknown, visits: PastVisit[], appointmentId: string): Brief | null {
-  if (!value || typeof value !== 'object') return null;
-  const item = value as Partial<Brief>;
-  if (typeof item.summary !== 'string' || !item.summary.trim() || item.summary.length > 1200) return null;
-  if (!Array.isArray(item.keyPoints) || item.keyPoints.length > 8 || !Array.isArray(item.limitations) || item.limitations.length > 6) return null;
+function validateBrief(value: unknown, visits: PastVisit[], appointmentId: string): ValidationResult {
+  let serialized: string;
+  try { serialized = JSON.stringify(value); } catch { return { ok: false, reason: 'invalid_shape' }; }
+  if (serialized.length > MAX_OUTPUT_CHARS) return { ok: false, reason: 'output_too_large' };
+  if (serialized.includes(appointmentId) || /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i.test(serialized)) return { ok: false, reason: 'uuid_leak' };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return { ok: false, reason: 'invalid_shape' };
+  const item = value as Partial<AIOutput>;
+  if (typeof item.summary !== 'string' || !item.summary.trim() || item.summary.length > 1200) return { ok: false, reason: 'invalid_summary' };
+  if (!Array.isArray(item.keyPoints) || item.keyPoints.length > 8) return { ok: false, reason: 'invalid_key_points' };
   const refs = new Set(visits.map((visit) => visit.ref));
-  const dates = new Set(visits.map((visit) => visit.followUpDate).filter(Boolean));
   for (const point of item.keyPoints) {
-    if (!point || typeof point.text !== 'string' || !point.text.trim() || point.text.length > 500 || !Array.isArray(point.evidenceRefs) || point.evidenceRefs.length === 0 || point.evidenceRefs.some((ref) => !refs.has(ref))) return null;
+    if (!point || typeof point.text !== 'string' || !point.text.trim() || point.text.length > 500 || !Array.isArray(point.evidenceRefs) || point.evidenceRefs.length === 0 || point.evidenceRefs.length > 5) return { ok: false, reason: 'invalid_key_points' };
+    if (point.evidenceRefs.some((ref) => typeof ref !== 'string' || !refs.has(ref))) return { ok: false, reason: 'invalid_evidence_ref' };
   }
-  if (item.limitations.some((entry) => typeof entry !== 'string' || entry.length > 300)) return null;
-  const followUp = item.followUp;
-  if (!followUp || typeof followUp.required !== 'boolean' || (followUp.date !== null && (typeof followUp.date !== 'string' || !dates.has(followUp.date))) || (followUp.note !== null && (typeof followUp.note !== 'string' || followUp.note.length > 500))) return null;
-  const serialized = JSON.stringify(value);
-  if (serialized.length > MAX_OUTPUT_CHARS || serialized.includes(appointmentId) || /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i.test(serialized) || /\b(?:diagnosis|tanı|tedavi öner|ilaç öner)\b/i.test(serialized)) return null;
-  return value as Brief;
+  if (!Array.isArray(item.limitations) || item.limitations.length > 6 || item.limitations.some((entry) => typeof entry !== 'string' || entry.length > 300)) return { ok: false, reason: 'invalid_limitations' };
+  const recommendationPattern = /\b(?:recommend(?:s|ed|ing)?|prescribe(?:s|d)?|should\s+(?:start|take|use)|(?:ilaç|tedavi)\s+(?:başlanmalı|başlayın|kullanın|önerilir|öneriyorum))\b/i;
+  if (recommendationPattern.test(serialized)) return { ok: false, reason: 'disallowed_claim' };
+  return { ok: true, brief: value as AIOutput };
 }
 
 Deno.serve(async (request) => {
@@ -166,7 +191,7 @@ Deno.serve(async (request) => {
         if (noHistoryUsageError.message.includes('AI_RATE_LIMIT')) throw new HttpError(429, 'Çok fazla istek gönderildi. Lütfen bir dakika sonra tekrar deneyin.');
         throw new HttpError(500, 'AI kullanım kaydı başlatılamadı.');
       }
-      await client.rpc('finish_ai_usage', { p_usage_id: noHistoryUsage, p_input_tokens: 0, p_output_tokens: 0, p_latency_ms: Date.now() - startedAt, p_status: 'no_history' });
+      await client.rpc('finish_ai_usage', { p_usage_id: noHistoryUsage, p_input_tokens: 0, p_output_tokens: 0, p_latency_ms: Date.now() - startedAt, p_status: 'no_history', p_error_code: null });
       return json({ brief: { summary: 'Bu hasta için önceki tamamlanmış muayene kaydı bulunmuyor.', keyPoints: [], followUp: { required: false, date: null, note: null }, limitations: ['Özet oluşturmak için geçmiş tamamlanmış muayene verisi yok.'] } });
     }
     const provider = (Deno.env.get('AI_PROVIDER') ?? 'openai').toLowerCase() as ProviderName;
@@ -184,12 +209,13 @@ Deno.serve(async (request) => {
     let providerResult: ProviderResult;
     try { providerResult = provider === 'openai' ? await generateWithOpenAI(prompt, model) : await generateWithGemini(prompt, model); }
     catch (providerError) {
-      await client.rpc('finish_ai_usage', { p_usage_id: usageId, p_input_tokens: 0, p_output_tokens: 0, p_latency_ms: Date.now() - startedAt, p_status: 'provider_error' });
+      await client.rpc('finish_ai_usage', { p_usage_id: usageId, p_input_tokens: 0, p_output_tokens: 0, p_latency_ms: Date.now() - startedAt, p_status: 'provider_error', p_error_code: 'provider_request_failed' });
       throw providerError;
     }
-    const brief = validateBrief(providerResult.value, context.past_visits, context.appointment_id);
-    await client.rpc('finish_ai_usage', { p_usage_id: usageId, p_input_tokens: providerResult.inputTokens, p_output_tokens: providerResult.outputTokens, p_latency_ms: Date.now() - startedAt, p_status: brief ? 'success' : 'invalid_output' });
-    return json({ brief: brief ?? safeFallback() });
+    const validation = validateBrief(providerResult.value, context.past_visits, context.appointment_id);
+    const followUp = getVerifiedFollowUp(context.past_visits);
+    await client.rpc('finish_ai_usage', { p_usage_id: usageId, p_input_tokens: providerResult.inputTokens, p_output_tokens: providerResult.outputTokens, p_latency_ms: Date.now() - startedAt, p_status: validation.ok ? 'success' : 'invalid_output', p_error_code: validation.ok ? null : validation.reason });
+    return json({ brief: validation.ok ? { ...validation.brief, followUp } : safeFallback(followUp) });
   } catch (error) {
     const safeError = error instanceof HttpError ? error : new HttpError(500, 'Hasta özeti hazırlanamadı.');
     return json({ error: safeError.message }, safeError.status);
