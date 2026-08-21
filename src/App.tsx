@@ -1,5 +1,5 @@
 
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { DataProvider } from './contexts/DataContext';
 import Navbar from './components/Navbar';
@@ -16,16 +16,23 @@ import PrivateRoute from './components/PrivateRoute';
 import RoleRoute from './components/RoleRoute';
 import DoctorDashboard from './pages/DoctorDashboard';
 import DoctorAppointmentDetailPage from './pages/DoctorAppointmentDetailPage';
+import DoctorWorkspaceLayout from './layouts/DoctorWorkspaceLayout';
+import DoctorCalendarPage from './pages/DoctorCalendarPage';
+import DoctorAppointmentsPage from './pages/DoctorAppointmentsPage';
+import DoctorPatientsPage from './pages/DoctorPatientsPage';
+import DoctorPatientTimelinePage from './pages/DoctorPatientTimelinePage';
+import DoctorVisitsPage from './pages/DoctorVisitsPage';
 import ChatbotButton from './components/Chatbot/ChatbotButton';
 import ScrollToTop from './components/ScrollToTop';
 import './App.css';
 
-function App() {
+function AppContent() {
+  const location = useLocation();
+  const isDoctorWorkspace = location.pathname === '/doctor' || location.pathname.startsWith('/doctor/');
+
   return (
-    <ThemeProvider>
-      <DataProvider>
         <div className="theme-bg theme-text flex min-h-screen flex-col transition-colors duration-300">
-          <Navbar />
+          {!isDoctorWorkspace && <Navbar />}
           <main className="flex-grow">
             <ScrollToTop />
             <Routes>
@@ -56,29 +63,30 @@ function App() {
                   </PrivateRoute>
                 } 
               />
-              <Route
-                path="/doctor"
-                element={
-                  <RoleRoute allowedRoles={['doctor']}>
-                    <DoctorDashboard />
-                  </RoleRoute>
-                }
-              />
-              <Route
-                path="/doctor/appointment/:appointmentId"
-                element={
-                  <RoleRoute allowedRoles={['doctor']}>
-                    <DoctorAppointmentDetailPage />
-                  </RoleRoute>
-                }
-              />
+              <Route path="/doctor" element={<RoleRoute allowedRoles={['doctor']}><DoctorWorkspaceLayout /></RoleRoute>}>
+                <Route index element={<DoctorDashboard />} />
+                <Route path="calendar" element={<DoctorCalendarPage />} />
+                <Route path="appointments" element={<DoctorAppointmentsPage />} />
+                <Route path="patients" element={<DoctorPatientsPage />} />
+                <Route path="patients/:patientId" element={<DoctorPatientTimelinePage />} />
+                <Route path="visits" element={<DoctorVisitsPage />} />
+                <Route path="appointment/:appointmentId" element={<DoctorAppointmentDetailPage />} />
+              </Route>
               <Route path="/departments" element={<DepartmentsPage />} />
               <Route path="/doctors" element={<DoctorsPage />} />
             </Routes>
           </main>
-          <ChatbotButton />
-          <Footer />
+          {!isDoctorWorkspace && <ChatbotButton />}
+          {!isDoctorWorkspace && <Footer />}
         </div>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <DataProvider>
+        <AppContent />
       </DataProvider>
     </ThemeProvider>
   );

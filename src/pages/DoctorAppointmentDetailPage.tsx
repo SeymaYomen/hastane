@@ -6,6 +6,7 @@ import {
   saveDoctorVisitNote,
   type DoctorAppointmentDetail,
 } from '../services/doctor/visitService';
+import { appointmentStatusLabels, statusBadgeClass } from '../types/appointmentStatus';
 
 const formatDate = (date: string) => {
   const [year, month, day] = date.split('-');
@@ -59,7 +60,7 @@ const DoctorAppointmentDetailPage = () => {
   }, [appointmentId]);
 
   const save = async (markCompleted: boolean) => {
-    if (!appointmentId || !detail || saving || detail.appointment_status === 'cancelled') return;
+    if (!appointmentId || !detail || saving || ['cancelled', 'no_show'].includes(detail.appointment_status)) return;
 
     if (markCompleted && !window.confirm('Muayene kaydedilecek ve randevu tamamlandı olarak işaretlenecek. Devam edilsin mi?')) {
       return;
@@ -122,7 +123,7 @@ const DoctorAppointmentDetailPage = () => {
     );
   }
 
-  const cancelled = detail.appointment_status === 'cancelled';
+  const cancelled = ['cancelled', 'no_show'].includes(detail.appointment_status);
   const completed = detail.appointment_status === 'completed';
 
   return (
@@ -140,7 +141,7 @@ const DoctorAppointmentDetailPage = () => {
         <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900" aria-labelledby="appointment-summary">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div><h2 id="appointment-summary" className="text-xl font-semibold text-slate-900 dark:text-white">{detail.patient_name}</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Randevu özeti</p></div>
-            <span className="rounded-full bg-cyan-100 px-3 py-1 text-xs font-semibold text-cyan-800 dark:bg-cyan-950 dark:text-cyan-200">{detail.appointment_status}</span>
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusBadgeClass[detail.appointment_status]}`}>{appointmentStatusLabels[detail.appointment_status]}</span>
           </div>
           <div className="mt-5 flex flex-wrap gap-5 text-sm text-slate-600 dark:text-slate-300">
             <span className="inline-flex items-center gap-2"><CalendarDays className="h-4 w-4" />{formatDate(detail.appointment_date)}</span>
@@ -175,7 +176,7 @@ const DoctorAppointmentDetailPage = () => {
 
           {!cancelled && <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
             <button type="submit" disabled={saving} className="rounded-lg border border-cyan-600 px-5 py-2.5 font-medium text-cyan-700 hover:bg-cyan-50 focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:cursor-not-allowed disabled:opacity-60 dark:text-cyan-300 dark:hover:bg-cyan-950/40">{saving ? 'Kaydediliyor...' : completed ? 'Değişiklikleri Kaydet' : 'Taslağı Kaydet'}</button>
-            {!completed && <button type="button" disabled={saving} onClick={() => void save(true)} className="rounded-lg bg-gradient-to-r from-cyan-600 to-violet-600 px-5 py-2.5 font-medium text-white hover:from-cyan-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:cursor-not-allowed disabled:opacity-60">Kaydet ve Muayeneyi Tamamla</button>}
+            {detail.appointment_status === 'in_progress' && <button type="button" disabled={saving} onClick={() => void save(true)} className="rounded-lg bg-gradient-to-r from-cyan-600 to-violet-600 px-5 py-2.5 font-medium text-white hover:from-cyan-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:cursor-not-allowed disabled:opacity-60">Kaydet ve Muayeneyi Tamamla</button>}
           </div>}
         </form>
       </div>

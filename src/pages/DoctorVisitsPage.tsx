@@ -1,0 +1,10 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { getDoctorVisits, type DoctorVisit } from '../services/doctor/workspaceService';
+
+const DoctorVisitsPage = () => {
+  const [visits, setVisits] = useState<DoctorVisit[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
+  useEffect(() => { void getDoctorVisits().then(setVisits).catch((e) => { console.error(e); setError('Muayene kayıtları yüklenemedi.'); }).finally(() => setLoading(false)); }, []);
+  return <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 lg:px-8"><p className="text-sm font-medium text-cyan-700 dark:text-cyan-300">Muayeneler</p><h1 className="text-3xl font-bold text-slate-950 dark:text-white">Tamamlanan muayeneler</h1>{error && <p className="mt-5 text-rose-600">{error}</p>}<div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">{visits.map((visit) => <div key={visit.appointment_id} className="flex flex-wrap items-center gap-4 border-b border-slate-200 p-5 last:border-0 dark:border-slate-800"><div className="min-w-0 flex-1"><p className="font-semibold">{visit.patient_name}</p><p className="mt-1 text-sm text-slate-500">{new Date(`${visit.appointment_date}T00:00:00`).toLocaleDateString('tr-TR')} · {visit.appointment_time.slice(0,5)}</p></div><span className={`rounded-full px-3 py-1 text-xs ${visit.follow_up_required ? 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-200' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>{visit.follow_up_required ? 'Takip gerekli' : 'Takip yok'}</span><Link to={`/doctor/appointment/${visit.appointment_id}`} className="rounded-lg border border-cyan-600 px-3 py-2 text-sm font-medium text-cyan-700 dark:text-cyan-300">Muayeneyi Aç</Link></div>)}{!loading && visits.length === 0 && <p className="p-8 text-center text-slate-500">Tamamlanmış muayene bulunmuyor.</p>}</div></div>;
+};
+export default DoctorVisitsPage;

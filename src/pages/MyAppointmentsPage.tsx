@@ -7,6 +7,8 @@ import {
   getMyFollowUpPlans,
   type PatientFollowUpPlan,
 } from '../services/patient/followUpService';
+import { cancelMyAppointment } from '../services/patient/appointmentService';
+import { activeAppointmentStatuses, appointmentStatusLabels, type AppointmentStatus } from '../types/appointmentStatus';
 
 interface Appointment {
   id: string;
@@ -14,7 +16,7 @@ interface Appointment {
   doctor: string;
   date: string;
   time: string;
-  status: 'upcoming' | 'completed' | 'cancelled';
+  status: AppointmentStatus;
   patientName: string;
   patientPhone: string;
   patientEmail?: string;
@@ -232,12 +234,7 @@ const MyAppointmentsPage = () => {
   if (!selectedAppointmentId) return;
 
   try {
-    const { error } = await supabase
-      .from('appointments')
-      .update({ status: 'cancelled' })
-      .eq('id', selectedAppointmentId);
-
-    if (error) throw error;
+    await cancelMyAppointment(selectedAppointmentId);
 
     setAppointments(prevAppointments =>
       prevAppointments.map(app =>
@@ -307,7 +304,7 @@ const MyAppointmentsPage = () => {
   const upcomingAppointments = appointments
   .filter(
     app =>
-      app.status === 'upcoming' &&
+      activeAppointmentStatuses.includes(app.status) &&
       !isAppointmentPassed(app.date, app.time)
   )
   .sort(sortAppointments);
@@ -315,7 +312,7 @@ const MyAppointmentsPage = () => {
 const pastAppointments = appointments
   .filter(
     app =>
-      app.status !== 'upcoming' ||
+      !activeAppointmentStatuses.includes(app.status) ||
       isAppointmentPassed(app.date, app.time)
   )
   .sort((a, b) => sortAppointments(b, a));
@@ -399,7 +396,7 @@ const pastAppointments = appointments
                         </div>
                       </div>
 
-                      {appointment.status === 'upcoming' && (
+                      {(appointment.status === 'pending' || appointment.status === 'confirmed') && (
                         <button
                           onClick={() => handleCancelClick(appointment.id)}
                           className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
@@ -447,13 +444,11 @@ const pastAppointments = appointments
                           {appointment.time}
                         </div>
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          appointment.status !== 'cancelled'
+                          appointment.status === 'completed'
                             ? 'bg-gray-900/50 text-gray-200' 
                             : 'bg-red-900/50 text-red-200'
                         }`}>
-                          {appointment.status === 'cancelled'
-  ? 'İptal Edildi'
-  : 'Tamamlandı'}
+                          {appointmentStatusLabels[appointment.status]}
                         </span>
                       </div>
                       
@@ -484,7 +479,7 @@ const pastAppointments = appointments
                         </div>
                       )}
 
-                      {appointment.status !== 'cancelled' && isAppointmentPassed(appointment.date, appointment.time) && (
+                      {appointment.status === 'completed' && isAppointmentPassed(appointment.date, appointment.time) && (
                         <div className="mt-4">
                           {appointment.rating ? (
                             <div className="flex items-center space-x-2">

@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase';
+import type { AppointmentStatus } from '../../types/appointmentStatus';
 
 export type DoctorAppointmentDetail = {
   appointment_id: string;
@@ -6,7 +7,7 @@ export type DoctorAppointmentDetail = {
   patient_name: string;
   appointment_date: string;
   appointment_time: string;
-  appointment_status: string;
+  appointment_status: AppointmentStatus;
   appointment_notes: string | null;
   visit_note_id: string | null;
   clinical_note: string | null;
@@ -28,7 +29,7 @@ export type VisitNoteSaveInput = {
 
 export type VisitNoteSaveResult = {
   visit_note_id: string;
-  appointment_status: string;
+  appointment_status: AppointmentStatus;
   updated_at: string;
 };
 

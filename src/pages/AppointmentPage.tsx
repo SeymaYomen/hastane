@@ -304,7 +304,7 @@ const AppointmentPage = () => {
         doctor_id: doctor.id,
         date: selectedDate,
         time: selectedTime,
-        status: 'upcoming',
+        status: 'pending',
         notes: notes.trim() || null,
         price: appointmentPrice,
         is_first_visit: isFirstVisit
