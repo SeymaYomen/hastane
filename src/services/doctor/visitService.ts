@@ -1,6 +1,8 @@
 import { supabase } from '../../lib/supabase';
 import type { AppointmentStatus } from '../../types/appointmentStatus';
 
+export type ClinicalNoteFormat = 'free_text' | 'soap';
+
 export type DoctorAppointmentDetail = {
   appointment_id: string;
   patient_id: string;
@@ -11,6 +13,11 @@ export type DoctorAppointmentDetail = {
   appointment_notes: string | null;
   visit_note_id: string | null;
   clinical_note: string | null;
+  note_format: ClinicalNoteFormat;
+  subjective: string | null;
+  objective: string | null;
+  assessment: string | null;
+  plan: string | null;
   follow_up_required: boolean;
   follow_up_date: string | null;
   follow_up_note: string | null;
@@ -21,6 +28,11 @@ export type DoctorAppointmentDetail = {
 export type VisitNoteSaveInput = {
   appointmentId: string;
   clinicalNote: string;
+  noteFormat: ClinicalNoteFormat;
+  subjective: string;
+  objective: string;
+  assessment: string;
+  plan: string;
   followUpRequired: boolean;
   followUpDate: string | null;
   followUpNote: string | null;
@@ -51,6 +63,11 @@ export const saveDoctorVisitNote = async (
   const { data, error } = await supabase.rpc('save_doctor_visit_note', {
     p_appointment_id: input.appointmentId,
     p_clinical_note: input.clinicalNote,
+    p_note_format: input.noteFormat,
+    p_subjective: input.subjective || null,
+    p_objective: input.objective || null,
+    p_assessment: input.assessment || null,
+    p_plan: input.plan || null,
     p_follow_up_required: input.followUpRequired,
     p_follow_up_date: input.followUpRequired ? input.followUpDate : null,
     p_follow_up_note: input.followUpRequired ? input.followUpNote : null,

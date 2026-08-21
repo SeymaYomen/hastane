@@ -1,5 +1,6 @@
 import { supabase } from '../../lib/supabase';
 import type { AppointmentStatus } from '../../types/appointmentStatus';
+import type { ClinicalNoteFormat } from './visitService';
 
 export type DoctorAppointment = {
   appointment_id: string;
@@ -26,6 +27,11 @@ export type PatientTimelineItem = {
   appointment_status: AppointmentStatus;
   department: string;
   clinical_note: string | null;
+  note_format: ClinicalNoteFormat;
+  subjective: string | null;
+  objective: string | null;
+  assessment: string | null;
+  plan: string | null;
   follow_up_required: boolean;
   follow_up_date: string | null;
   follow_up_note: string | null;
@@ -37,6 +43,7 @@ export type DoctorVisit = {
   patient_name: string;
   appointment_date: string;
   appointment_time: string;
+  note_format: ClinicalNoteFormat;
   follow_up_required: boolean;
   follow_up_date: string | null;
 };
