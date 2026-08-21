@@ -57,6 +57,22 @@ const outputSchema = {
 class HttpError extends Error { constructor(public status: number, message: string) { super(message); } }
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
+const getSupabasePublishableKey = (): string | undefined => {
+  const encodedKeys = Deno.env.get('SUPABASE_PUBLISHABLE_KEYS');
+  if (encodedKeys) {
+    try {
+      const keys = JSON.parse(encodedKeys) as Record<string, unknown>;
+      const preferredKey = keys.default ?? keys.publishable ?? keys.anon;
+      if (typeof preferredKey === 'string' && preferredKey.trim()) return preferredKey;
+      const firstKey = Object.values(keys).find((value) => typeof value === 'string' && value.trim());
+      if (typeof firstKey === 'string') return firstKey;
+    } catch {
+      // Fall through to the legacy key without exposing environment values.
+    }
+  }
+  return Deno.env.get('SUPABASE_ANON_KEY') || undefined;
+};
+
 const responseText = (payload: Record<string, unknown>) => {
   if (typeof payload.output_text === 'string') return payload.output_text;
   const output = Array.isArray(payload.output) ? payload.output : [];
@@ -131,9 +147,9 @@ Deno.serve(async (request) => {
     const authorization = request.headers.get('Authorization');
     if (!authorization?.startsWith('Bearer ')) throw new HttpError(401, 'Oturum bulunamadı.');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
-    if (!supabaseUrl || !anonKey) throw new HttpError(503, 'Servis yapılandırması eksik.');
-    client = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authorization } }, auth: { persistSession: false } });
+    const publishableKey = getSupabasePublishableKey();
+    if (!supabaseUrl || !publishableKey) throw new HttpError(503, 'Servis yapılandırması eksik.');
+    client = createClient(supabaseUrl, publishableKey, { global: { headers: { Authorization: authorization } }, auth: { persistSession: false } });
     const { data: authData, error: authError } = await client.auth.getUser();
     if (authError || !authData.user) throw new HttpError(401, 'Oturum doğrulanamadı.');
     const { data: role, error: roleError } = await client.from('user_roles').select('role').eq('user_id', authData.user.id).single();
