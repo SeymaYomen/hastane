@@ -14,8 +14,9 @@ export type DoctorAppointment = {
 export type DoctorPatient = {
   patient_id: string;
   patient_name: string;
-  last_appointment_at: string;
+  last_appointment_at: string | null;
   appointment_count: number;
+  next_appointment_date: string | null;
 };
 
 export type PatientTimelineItem = {
