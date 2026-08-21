@@ -44,6 +44,7 @@ type ValidationResult = { ok: true; brief: AIOutput } | { ok: false; reason: Val
 type ProviderResult = { value: unknown; inputTokens: number; outputTokens: number };
 
 const RATE_LIMIT_PER_MINUTE = 5;
+const PROVIDER_TIMEOUT_MS = 45_000;
 const MAX_CONTEXT_CHARS = 30_000;
 const MAX_OUTPUT_CHARS = 4_000;
 const corsHeaders = {
@@ -68,6 +69,21 @@ const outputSchema = {
 
 class HttpError extends Error { constructor(public status: number, message: string) { super(message); } }
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+const fetchWithTimeout = async (url: string, options: RequestInit): Promise<Response> => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError' || (error && typeof error === 'object' && 'name' in error && error.name === 'AbortError')) {
+      throw new HttpError(504, 'AI servisi zamanında yanıt vermedi. Lütfen tekrar deneyin.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
 
 const getSupabasePublishableKey = (): string | undefined => {
   const encodedKeys = Deno.env.get('SUPABASE_PUBLISHABLE_KEYS');
@@ -99,9 +115,9 @@ const responseText = (payload: Record<string, unknown>) => {
 async function generateWithOpenAI(prompt: string, model: string): Promise<ProviderResult> {
   const apiKey = Deno.env.get('OPENAI_API_KEY');
   if (!apiKey) throw new HttpError(503, 'AI servisi henüz yapılandırılmadı.');
-  const response = await fetch('https://api.openai.com/v1/responses', {
+  const response = await fetchWithTimeout('https://api.openai.com/v1/responses', {
     method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, instructions: systemInstruction, input: prompt, text: { format: { type: 'json_schema', name: 'pre_visit_brief', strict: true, schema: outputSchema } } }),
+    body: JSON.stringify({ model, instructions: systemInstruction, input: prompt, max_output_tokens: 2048, text: { format: { type: 'json_schema', name: 'pre_visit_brief', strict: true, schema: outputSchema } } }),
   });
   if (!response.ok) throw new HttpError(502, 'AI sağlayıcısı isteği tamamlayamadı.');
   const payload = await response.json() as Record<string, unknown>;
@@ -114,9 +130,9 @@ async function generateWithOpenAI(prompt: string, model: string): Promise<Provid
 async function generateWithGemini(prompt: string, model: string): Promise<ProviderResult> {
   const apiKey = Deno.env.get('GEMINI_API_KEY');
   if (!apiKey) throw new HttpError(503, 'AI servisi henüz yapılandırılmadı.');
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+  const response = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ systemInstruction: { parts: [{ text: systemInstruction }] }, contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', responseJsonSchema: outputSchema } }),
+    body: JSON.stringify({ systemInstruction: { parts: [{ text: systemInstruction }] }, contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', responseJsonSchema: outputSchema, maxOutputTokens: 2048 } }),
   });
   if (!response.ok) throw new HttpError(502, 'AI sağlayıcısı isteği tamamlayamadı.');
   const payload = await response.json() as Record<string, unknown>;
@@ -209,7 +225,8 @@ Deno.serve(async (request) => {
     let providerResult: ProviderResult;
     try { providerResult = provider === 'openai' ? await generateWithOpenAI(prompt, model) : await generateWithGemini(prompt, model); }
     catch (providerError) {
-      await client.rpc('finish_ai_usage', { p_usage_id: usageId, p_input_tokens: 0, p_output_tokens: 0, p_latency_ms: Date.now() - startedAt, p_status: 'provider_error', p_error_code: 'provider_request_failed' });
+      const errorCode = providerError instanceof HttpError && providerError.status === 504 ? 'provider_timeout' : 'provider_request_failed';
+      await client.rpc('finish_ai_usage', { p_usage_id: usageId, p_input_tokens: 0, p_output_tokens: 0, p_latency_ms: Date.now() - startedAt, p_status: 'provider_error', p_error_code: errorCode });
       throw providerError;
     }
     const validation = validateBrief(providerResult.value, context.past_visits, context.appointment_id);
