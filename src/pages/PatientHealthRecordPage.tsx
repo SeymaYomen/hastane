@@ -10,6 +10,7 @@ import {
   getMyPrescriptions,
   type PatientPrescription,
 } from '../services/patient/prescriptionService';
+import LabOrdersSection from '../components/patient/LabOrdersSection';
 
 const formatDate = (date: string) => new Date(`${date}T00:00:00`).toLocaleDateString('tr-TR', {
   day: 'numeric', month: 'long', year: 'numeric',
@@ -156,6 +157,7 @@ const PatientHealthRecordPage = () => {
         {!prescriptionsLoading && !prescriptionsError && prescriptions.length === 0 && <div className={`mt-5 rounded-2xl p-8 text-center ${cardClass}`}>Henüz reçete kaydınız bulunmuyor.</div>}
         {!prescriptionsLoading && !prescriptionsError && prescriptions.length > 0 && <div className="mt-5 space-y-5">{prescriptions.map((prescription) => <article key={prescription.prescription_id} className={`rounded-2xl p-6 ${cardClass}`}><header><p className="font-semibold">{formatDate(prescription.appointment_date)} · {prescription.appointment_time.slice(0, 5)}</p><p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{prescription.doctor_title ? `${prescription.doctor_title} ` : ''}{prescription.doctor_name} · {prescription.department}</p></header><div className="mt-5 space-y-3">{prescription.items.map((item) => <section key={`${item.sort_order}-${item.medication_name}`} className="rounded-xl border border-slate-200 p-4 dark:border-slate-800"><h3 className="font-semibold">{item.medication_name}</h3><dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">{item.dose_instruction && <div><dt className="text-slate-500">Doz / Kullanım Miktarı</dt><dd>{item.dose_instruction}</dd></div>}{item.frequency && <div><dt className="text-slate-500">Kullanım Sıklığı</dt><dd>{item.frequency}</dd></div>}{item.duration && <div><dt className="text-slate-500">Süre</dt><dd>{item.duration}</dd></div>}{item.usage_note && <div><dt className="text-slate-500">Ek Kullanım Notu</dt><dd className="whitespace-pre-wrap">{item.usage_note}</dd></div>}</dl></section>)}</div>{prescription.prescription_note && <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm dark:bg-slate-900"><p className="font-semibold">Doktor notu</p><p className="mt-2 whitespace-pre-wrap">{prescription.prescription_note}</p></div>}</article>)}</div>}
       </section>
+      <LabOrdersSection cardClass={cardClass} />
     </div>
   );
 };
