@@ -9,6 +9,7 @@ import {
 } from '../services/doctor/visitService';
 import { appointmentStatusLabels, statusBadgeClass } from '../types/appointmentStatus';
 import PreVisitBriefPanel from '../components/doctor/PreVisitBriefPanel';
+import PrescriptionSection from '../components/doctor/PrescriptionSection';
 
 const formatDate = (date: string) => {
   const [year, month, day] = date.split('-');
@@ -139,6 +140,7 @@ const DoctorAppointmentDetailPage = () => {
       <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800"><label className="flex items-center gap-3 font-semibold"><input type="checkbox" checked={followUpRequired} disabled={locked || saving} onChange={(event) => setFollowUpRequired(event.target.checked)} className="h-5 w-5 rounded text-cyan-600" />Kontrol gerekli</label>{followUpRequired && <div className="mt-4 grid gap-4"><label className="text-sm">Kontrol tarihi<input type="date" min={detail.appointment_date} value={followUpDate} disabled={locked || saving} onChange={(event) => setFollowUpDate(event.target.value)} className="mt-1 block rounded-lg border border-slate-300 bg-transparent px-3 py-2 dark:border-slate-700" /></label><label className="text-sm">Hastaya gösterilecek kontrol notu<textarea maxLength={2000} rows={4} value={followUpNote} disabled={locked || saving} onChange={(event) => setFollowUpNote(event.target.value)} className="mt-1 block w-full rounded-xl border border-slate-300 bg-transparent p-3 dark:border-slate-700" /></label></div>}</div>
       {!locked && <div className="flex flex-col gap-3 sm:flex-row sm:justify-end"><button type="submit" disabled={saving} className="rounded-lg border border-cyan-600 px-5 py-2.5 font-medium text-cyan-700 disabled:opacity-50 dark:text-cyan-300">{saving ? 'Kaydediliyor...' : completed ? 'Değişiklikleri Kaydet' : 'Taslağı Kaydet'}</button>{detail.appointment_status === 'in_progress' && <button type="button" disabled={saving} onClick={() => void save(true)} className="rounded-lg bg-cyan-600 px-5 py-2.5 font-medium text-white disabled:opacity-50">Kaydet ve Muayeneyi Tamamla</button>}</div>}
     </form>
+    {completed && <PrescriptionSection appointmentId={detail.appointment_id} />}
   </div>;
 };
 

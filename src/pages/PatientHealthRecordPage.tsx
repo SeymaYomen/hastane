@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarClock, CheckCircle2, FileHeart, Stethoscope } from 'lucide-react';
+import { CalendarClock, CheckCircle2, FileHeart, Pill, Stethoscope } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import {
   getMyHealthRecord,
   type PatientHealthRecordItem,
 } from '../services/patient/healthRecordService';
+import {
+  getMyPrescriptions,
+  type PatientPrescription,
+} from '../services/patient/prescriptionService';
 
 const formatDate = (date: string) => new Date(`${date}T00:00:00`).toLocaleDateString('tr-TR', {
   day: 'numeric', month: 'long', year: 'numeric',
@@ -26,6 +30,9 @@ const PatientHealthRecordPage = () => {
   const [records, setRecords] = useState<PatientHealthRecordItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [prescriptions, setPrescriptions] = useState<PatientPrescription[]>([]);
+  const [prescriptionsLoading, setPrescriptionsLoading] = useState(true);
+  const [prescriptionsError, setPrescriptionsError] = useState(false);
   const { theme } = useTheme();
   const highContrast = theme === 'high-contrast';
 
@@ -35,6 +42,15 @@ const PatientHealthRecordPage = () => {
       .then((items) => { if (mounted) setRecords(items); })
       .catch(() => { if (mounted) setError(true); })
       .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    void getMyPrescriptions()
+      .then((items) => { if (mounted) setPrescriptions(items); })
+      .catch(() => { if (mounted) setPrescriptionsError(true); })
+      .finally(() => { if (mounted) setPrescriptionsLoading(false); });
     return () => { mounted = false; };
   }, []);
 
@@ -132,6 +148,14 @@ const PatientHealthRecordPage = () => {
           </section>
         </>
       )}
+
+      <section className="mt-10" aria-labelledby="my-prescriptions-title">
+        <div className="flex items-center gap-3"><Pill className="h-6 w-6 text-emerald-600 dark:text-emerald-300" /><h2 id="my-prescriptions-title" className="text-2xl font-bold text-slate-950 dark:text-white">Reçetelerim</h2></div>
+        {prescriptionsLoading && <div className={`mt-5 rounded-2xl p-8 text-center ${cardClass}`}>Reçeteleriniz yükleniyor...</div>}
+        {!prescriptionsLoading && prescriptionsError && <div role="alert" className={`mt-5 rounded-2xl p-8 text-center ${cardClass}`}>Reçeteleriniz şu anda yüklenemedi. Lütfen tekrar deneyin.</div>}
+        {!prescriptionsLoading && !prescriptionsError && prescriptions.length === 0 && <div className={`mt-5 rounded-2xl p-8 text-center ${cardClass}`}>Henüz reçete kaydınız bulunmuyor.</div>}
+        {!prescriptionsLoading && !prescriptionsError && prescriptions.length > 0 && <div className="mt-5 space-y-5">{prescriptions.map((prescription) => <article key={prescription.prescription_id} className={`rounded-2xl p-6 ${cardClass}`}><header><p className="font-semibold">{formatDate(prescription.appointment_date)} · {prescription.appointment_time.slice(0, 5)}</p><p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{prescription.doctor_title ? `${prescription.doctor_title} ` : ''}{prescription.doctor_name} · {prescription.department}</p></header><div className="mt-5 space-y-3">{prescription.items.map((item) => <section key={`${item.sort_order}-${item.medication_name}`} className="rounded-xl border border-slate-200 p-4 dark:border-slate-800"><h3 className="font-semibold">{item.medication_name}</h3><dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">{item.dose_instruction && <div><dt className="text-slate-500">Doz / Kullanım Miktarı</dt><dd>{item.dose_instruction}</dd></div>}{item.frequency && <div><dt className="text-slate-500">Kullanım Sıklığı</dt><dd>{item.frequency}</dd></div>}{item.duration && <div><dt className="text-slate-500">Süre</dt><dd>{item.duration}</dd></div>}{item.usage_note && <div><dt className="text-slate-500">Ek Kullanım Notu</dt><dd className="whitespace-pre-wrap">{item.usage_note}</dd></div>}</dl></section>)}</div>{prescription.prescription_note && <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm dark:bg-slate-900"><p className="font-semibold">Doktor notu</p><p className="mt-2 whitespace-pre-wrap">{prescription.prescription_note}</p></div>}</article>)}</div>}
+      </section>
     </div>
   );
 };
