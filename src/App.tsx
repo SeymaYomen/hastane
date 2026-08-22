@@ -10,6 +10,7 @@ import DepartmentsPage from './pages/DepartmentsPage';
 import DoctorsPage from './pages/DoctorsPage';
 import LoginPage from './pages/LoginPage';
 import MyAppointmentsPage from './pages/MyAppointmentsPage';
+import PatientHealthRecordPage from './pages/PatientHealthRecordPage';
 import ProfilePage from './pages/ProfilePage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import PrivateRoute from './components/PrivateRoute';
@@ -62,6 +63,14 @@ function AppContent() {
                     <ProfilePage />
                   </PrivateRoute>
                 } 
+              />
+              <Route
+                path="/health-record"
+                element={
+                  <RoleRoute allowedRoles={['patient']}>
+                    <PatientHealthRecordPage />
+                  </RoleRoute>
+                }
               />
               <Route path="/doctor" element={<RoleRoute allowedRoles={['doctor']}><DoctorWorkspaceLayout /></RoleRoute>}>
                 <Route index element={<DoctorDashboard />} />

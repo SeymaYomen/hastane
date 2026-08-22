@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, ChevronDown, User, Calendar, Phone, LogOut, Heart, Stethoscope } from 'lucide-react';
+import { Menu, X, ChevronDown, User, Calendar, Phone, LogOut, Heart, Stethoscope, FileHeart } from 'lucide-react';
 import ThemeSwitcher from './ThemeSwitcher';
 import { supabase } from '../lib/supabase';
 import { clinicConfig } from '../config/clinicConfig';
@@ -194,13 +194,16 @@ const Navbar = () => {
                       Profilim
                     </Link>
                     {role === 'patient' && (
-                      <Link
-                        to="/my-appointments"
-                        className={`block px-4 py-2 transition-colors ${isHighContrast ? 'text-white hover:bg-white hover:text-black' : isLight ? 'text-[#0F172A] hover:bg-[#F1F5F9]' : 'text-[#E2E8F0] hover:bg-white/10'}`}
-                      >
-                        <Calendar size={18} className="inline-block mr-2" />
-                        Randevularım
-                      </Link>
+                      <>
+                        <Link to="/health-record" className={`block px-4 py-2 transition-colors ${isHighContrast ? 'text-white hover:bg-white hover:text-black' : isLight ? 'text-[#0F172A] hover:bg-[#F1F5F9]' : 'text-[#E2E8F0] hover:bg-white/10'}`}>
+                          <FileHeart size={18} className="inline-block mr-2" />
+                          Sağlık Dosyam
+                        </Link>
+                        <Link to="/my-appointments" className={`block px-4 py-2 transition-colors ${isHighContrast ? 'text-white hover:bg-white hover:text-black' : isLight ? 'text-[#0F172A] hover:bg-[#F1F5F9]' : 'text-[#E2E8F0] hover:bg-white/10'}`}>
+                          <Calendar size={18} className="inline-block mr-2" />
+                          Randevularım
+                        </Link>
+                      </>
                     )}
                     <button
                       onClick={handleLogout}
@@ -283,13 +286,16 @@ const Navbar = () => {
                     <span>Profilim</span>
                   </Link>
                   {role === 'patient' && (
-                    <Link
-                      to="/my-appointments"
-                      className={`flex items-center space-x-2 py-2 px-4 rounded-lg transition-colors ${isHighContrast ? 'text-white hover:bg-white hover:text-black' : isLight ? 'text-[#334155] hover:bg-[#F1F5F9] hover:text-[#0F172A]' : 'text-white/90 hover:bg-white/10 hover:text-white'}`}
-                    >
-                      <Calendar size={18} />
-                      <span>Randevularım</span>
-                    </Link>
+                    <>
+                      <Link to="/health-record" className={`flex items-center space-x-2 py-2 px-4 rounded-lg transition-colors ${isHighContrast ? 'text-white hover:bg-white hover:text-black' : isLight ? 'text-[#334155] hover:bg-[#F1F5F9] hover:text-[#0F172A]' : 'text-white/90 hover:bg-white/10 hover:text-white'}`}>
+                        <FileHeart size={18} />
+                        <span>Sağlık Dosyam</span>
+                      </Link>
+                      <Link to="/my-appointments" className={`flex items-center space-x-2 py-2 px-4 rounded-lg transition-colors ${isHighContrast ? 'text-white hover:bg-white hover:text-black' : isLight ? 'text-[#334155] hover:bg-[#F1F5F9] hover:text-[#0F172A]' : 'text-white/90 hover:bg-white/10 hover:text-white'}`}>
+                        <Calendar size={18} />
+                        <span>Randevularım</span>
+                      </Link>
+                    </>
                   )}
                   <button
                     onClick={handleLogout}
