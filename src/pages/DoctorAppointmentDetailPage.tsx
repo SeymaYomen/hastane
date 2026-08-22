@@ -11,6 +11,7 @@ import { appointmentStatusLabels, statusBadgeClass } from '../types/appointmentS
 import PreVisitBriefPanel from '../components/doctor/PreVisitBriefPanel';
 import PrescriptionSection from '../components/doctor/PrescriptionSection';
 import LabOrderSection from '../components/doctor/LabOrderSection';
+import MedicalDocumentsSection from '../components/doctor/MedicalDocumentsSection';
 
 const formatDate = (date: string) => {
   const [year, month, day] = date.split('-');
@@ -143,6 +144,7 @@ const DoctorAppointmentDetailPage = () => {
     </form>
     {['in_progress', 'completed'].includes(detail.appointment_status) && <LabOrderSection appointmentId={detail.appointment_id} />}
     {completed && <PrescriptionSection appointmentId={detail.appointment_id} />}
+    {['confirmed', 'in_progress', 'completed'].includes(detail.appointment_status) && <MedicalDocumentsSection appointmentId={detail.appointment_id} allowUpload={['in_progress', 'completed'].includes(detail.appointment_status)} />}
   </div>;
 };
 

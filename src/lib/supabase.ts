@@ -14,11 +14,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: true
   },
-  global: {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  },
   // Add retry configuration for better reliability
   db: {
     schema: 'public',
