@@ -43,6 +43,8 @@ const DoctorAppointmentDetailPage = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const [saveSuccess, setSaveSuccess] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -82,15 +84,19 @@ const DoctorAppointmentDetailPage = () => {
     if (!appointmentId || !detail || saving || ['cancelled', 'no_show'].includes(detail.appointment_status)) return;
     if (noteFormat === 'soap' && ![subjective, objective, assessment, plan].some((value) => value.trim())) {
       setError('SOAP kaydı için en az bir alan doldurun.');
+      setSaveError('SOAP kaydı için en az bir alan doldurun.');
+      setSaveSuccess('');
       return;
     }
     if (markCompleted && noteFormat === 'free_text' && !clinicalNote.trim()) {
       setError('Muayeneyi tamamlamak için doktor muayene notu gereklidir.');
+      setSaveError('Muayeneyi tamamlamak için doktor muayene notu gereklidir.');
+      setSaveSuccess('');
       return;
     }
     if (markCompleted && !window.confirm('Muayene kaydedilecek ve tamamlandı olarak işaretlenecek. Devam edilsin mi?')) return;
 
-    setSaving(true); setError(''); setSuccess('');
+    setSaving(true); setError(''); setSuccess(''); setSaveError(''); setSaveSuccess('');
     try {
       const result = await saveDoctorVisitNote({
         appointmentId, clinicalNote, noteFormat, subjective, objective,
@@ -114,10 +120,14 @@ const DoctorAppointmentDetailPage = () => {
         follow_up_note: followUpRequired ? followUpNote || null : null,
         visit_updated_at: result.updated_at,
       } : current);
-      setSuccess(markCompleted ? 'Muayene kaydedildi ve tamamlandı.' : 'Değişiklikler kaydedildi.');
+      const successMessage = markCompleted ? 'Muayene kaydedildi ve tamamlandı.' : 'Değişiklikler kaydedildi.';
+      setSuccess(successMessage);
+      setSaveSuccess(successMessage);
     } catch (saveError) {
       console.error('Muayene kaydı kaydedilemedi:', saveError);
-      setError(saveError instanceof Error ? saveError.message : 'Muayene kaydı kaydedilemedi.');
+      const errorMessage = saveError instanceof Error ? saveError.message : 'Muayene kaydı kaydedilemedi.';
+      setError(errorMessage);
+      setSaveError(errorMessage);
     } finally { setSaving(false); }
   };
 
@@ -163,7 +173,7 @@ const DoctorAppointmentDetailPage = () => {
       <fieldset disabled={locked || saving}><legend className="font-semibold">Not Türü</legend><div className="mt-3 inline-flex rounded-xl border border-slate-200 p-1 dark:border-slate-700">{(['free_text', 'soap'] as const).map((format) => <button key={format} type="button" onClick={() => changeFormat(format)} className={`rounded-lg px-4 py-2 text-sm font-medium ${noteFormat === format ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}>{format === 'free_text' ? 'Serbest Not' : 'SOAP'}</button>)}</div></fieldset>
       {noteFormat === 'free_text' ? <div><label htmlFor="clinical-note" className="font-semibold">Doktor Muayene Notu</label><p id="clinical-note-help" className="mt-1 text-sm text-slate-500">Doktora özel klinik kayıttır; hastaya gösterilmez.</p><textarea id="clinical-note" aria-describedby="clinical-note-help" maxLength={10000} rows={8} disabled={locked || saving} value={clinicalNote} onChange={(event) => { setError(''); setClinicalNote(event.target.value); }} className="mt-3 w-full rounded-xl border border-slate-300 bg-transparent p-3 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 disabled:opacity-60 dark:border-slate-700" /></div> : <div className="grid gap-5">{soapFields.map((field) => <div key={field.key}><label htmlFor={`soap-${field.key}`} className="font-semibold"><span className="mr-2 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-200">{field.letter}</span>{field.label}</label><p id={`soap-${field.key}-help`} className="mt-1 text-sm text-slate-500">{field.help}</p><textarea id={`soap-${field.key}`} aria-describedby={`soap-${field.key}-help`} maxLength={5000} rows={4} disabled={locked || saving} value={soapValues[field.key]} onChange={(event) => { setError(''); setSoapValue[field.key](event.target.value); }} className="mt-2 w-full rounded-xl border border-slate-300 bg-transparent p-3 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 disabled:opacity-60 dark:border-slate-700" /></div>)}</div>}
       <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800"><label className="flex items-center gap-3 font-semibold"><input type="checkbox" checked={followUpRequired} disabled={locked || saving} onChange={(event) => setFollowUpRequired(event.target.checked)} className="h-5 w-5 rounded text-cyan-600" />Kontrol gerekli</label>{followUpRequired && <div className="mt-4 grid gap-4"><label className="text-sm">Kontrol tarihi<input type="date" min={detail.appointment_date} value={followUpDate} disabled={locked || saving} onChange={(event) => setFollowUpDate(event.target.value)} className="mt-1 block rounded-lg border border-slate-300 bg-transparent px-3 py-2 dark:border-slate-700" /></label><label className="text-sm">Hastaya gösterilecek kontrol notu<textarea maxLength={2000} rows={4} value={followUpNote} disabled={locked || saving} onChange={(event) => setFollowUpNote(event.target.value)} className="mt-1 block w-full rounded-xl border border-slate-300 bg-transparent p-3 dark:border-slate-700" /></label></div>}</div>
-      {!locked && <div className="flex flex-col gap-3 sm:flex-row sm:justify-end"><button type="submit" disabled={saving} className="rounded-lg border border-cyan-600 px-5 py-2.5 font-medium text-cyan-700 disabled:opacity-50 dark:text-cyan-300">{saving ? 'Kaydediliyor...' : completed ? 'Değişiklikleri Kaydet' : 'Taslağı Kaydet'}</button>{detail.appointment_status === 'in_progress' && <button type="button" disabled={saving} onClick={() => void save(true)} className="rounded-lg bg-cyan-600 px-5 py-2.5 font-medium text-white disabled:opacity-50">Kaydet ve Muayeneyi Tamamla</button>}</div>}
+      {!locked && <div className="space-y-3">{saveError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200">{saveError}</p>}{saveSuccess && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">{saveSuccess}</p>}<div className="flex flex-col gap-3 sm:flex-row sm:justify-end"><button type="submit" disabled={saving} className="rounded-lg border border-cyan-600 px-5 py-2.5 font-medium text-cyan-700 disabled:opacity-50 dark:text-cyan-300">{saving ? 'Klinik Not Kaydediliyor...' : completed ? 'Değişiklikleri Kaydet' : 'Klinik Notu Kaydet'}</button>{detail.appointment_status === 'in_progress' && <button type="button" disabled={saving} onClick={() => void save(true)} className="rounded-lg bg-cyan-600 px-5 py-2.5 font-medium text-white disabled:opacity-50">Kaydet ve Muayeneyi Tamamla</button>}</div></div>}
     </form>
     {['in_progress', 'completed'].includes(detail.appointment_status) && <LabOrderSection appointmentId={detail.appointment_id} />}
     {completed && <PrescriptionSection appointmentId={detail.appointment_id} />}
