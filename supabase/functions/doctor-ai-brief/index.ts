@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { buildDoctorBriefProviderContext } from '../_shared/aiPrivacy.ts';
 
 type ProviderName = 'openai' | 'gemini';
 type PastVisit = {
@@ -135,8 +136,8 @@ async function generateWithOpenAI(prompt: string, model: string): Promise<Provid
 async function generateWithGemini(prompt: string, model: string): Promise<ProviderResult> {
   const apiKey = Deno.env.get('GEMINI_API_KEY');
   if (!apiKey) throw new HttpError(503, 'AI servisi henüz yapılandırılmadı.');
-  const response = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+  const response = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify({ systemInstruction: { parts: [{ text: systemInstruction }] }, contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', responseJsonSchema: outputSchema, maxOutputTokens: 2048, thinkingConfig: { thinkingLevel: 'low' } } }),
   });
   if (!response.ok) throw new HttpError(502, 'AI sağlayıcısı isteği tamamlayamadı.');
@@ -219,7 +220,8 @@ Deno.serve(async (request) => {
     if (!['openai', 'gemini'].includes(provider)) throw new HttpError(503, 'AI sağlayıcısı yapılandırması geçersiz.');
     const model = Deno.env.get('AI_MODEL');
     if (!model) throw new HttpError(503, 'AI servisi henüz yapılandırılmadı.');
-    const prompt = `Verified context records follow. References V1-V5 identify past visits. Return only the requested JSON.\n${JSON.stringify(context)}`;
+    const providerContext = buildDoctorBriefProviderContext(context);
+    const prompt = `Verified historical records follow. References V1-V5 identify past visits. Return only the requested JSON.\n${JSON.stringify(providerContext)}`;
     if (prompt.length > MAX_CONTEXT_CHARS) throw new HttpError(413, 'Klinik bağlam güvenli özetleme sınırını aşıyor.');
     const { data: startedUsage, error: usageError } = await client.rpc('start_ai_usage', { p_feature: 'doctor_pre_visit_brief', p_provider: provider, p_model: model, p_limit: RATE_LIMIT_PER_MINUTE });
     if (usageError) {
