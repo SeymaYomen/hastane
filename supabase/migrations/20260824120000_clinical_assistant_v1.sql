@@ -86,11 +86,11 @@ begin
     select 1 from public.user_roles
     where user_id = auth.uid() and role = 'doctor'
   ) then
-    raise exception 'Doktor yetkisi bulunamadÄ±.' using errcode = '42501';
+    raise exception 'Doktor yetkisi bulunamadı.' using errcode = '42501';
   end if;
   if p_feature not in ('doctor_pre_visit_brief', 'clinical_assistant_summary', 'clinical_note_draft')
     or p_limit < 1 or p_limit > 20 then
-    raise exception 'GeÃ§ersiz AI kullanÄ±m isteÄŸi.';
+    raise exception 'Geçersiz AI kullanım isteği.';
   end if;
 
   v_rate_bucket := case

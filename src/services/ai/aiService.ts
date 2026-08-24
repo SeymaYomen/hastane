@@ -160,7 +160,7 @@ const invokeClinicalAssistant = async <T>(
 ): Promise<T> => {
   let timeout: ReturnType<typeof setTimeout> | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
-    timeout = setTimeout(() => reject(new AIServiceError('timeout', 'AI servisi zamanÄ±nda yanÄ±t vermedi. LÃ¼tfen tekrar deneyin.')), CLIENT_TIMEOUT_MS);
+    timeout = setTimeout(() => reject(new AIServiceError('timeout', 'AI servisi zamanında yanıt vermedi. Lütfen tekrar deneyin.')), CLIENT_TIMEOUT_MS);
   });
   try {
     const { data, error } = await Promise.race([
@@ -168,7 +168,7 @@ const invokeClinicalAssistant = async <T>(
       timeoutPromise,
     ]);
     if (error) throw await normalizeInvokeError(error);
-    if (!validate(data?.result)) throw new AIServiceError('invalid_response', 'AI servisi geÃ§erli ve gÃ¼venli bir yanÄ±t dÃ¶ndÃ¼rmedi.');
+    if (!validate(data?.result)) throw new AIServiceError('invalid_response', 'AI servisi geçerli ve güvenli bir yanıt döndürmedi.');
     return data.result;
   } catch (error) {
     throw await normalizeInvokeError(error);

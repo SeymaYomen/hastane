@@ -11,6 +11,7 @@ import {
   hasOnlyAllowedEvidenceRefs,
   isClinicalAssistantActionAllowed,
   normalizeCurrentNote,
+  validateClinicalNoteDraftBoundary,
   type ClinicalAssistantAction,
   type ClinicalAssistantStatus,
   type CurrentNote,
@@ -88,7 +89,7 @@ const fetchWithTimeout = async (url: string, options: RequestInit): Promise<Resp
     return await fetch(url, { ...options, signal: controller.signal });
   } catch (error) {
     if ((error instanceof DOMException && error.name === 'AbortError') || (error && typeof error === 'object' && 'name' in error && error.name === 'AbortError')) {
-      throw new HttpError(504, 'AI servisi zamanÄ±nda yanÄ±t vermedi. LÃ¼tfen tekrar deneyin.');
+      throw new HttpError(504, 'AI servisi zamanında yanıt vermedi. Lütfen tekrar deneyin.');
     }
     throw error;
   } finally { clearTimeout(timeout); }
@@ -116,17 +117,17 @@ const responseText = (payload: Record<string, unknown>) => {
     const content = Array.isArray((item as { content?: unknown }).content) ? (item as { content: unknown[] }).content : [];
     for (const part of content) if (part && typeof part === 'object' && typeof (part as { text?: unknown }).text === 'string') return (part as { text: string }).text;
   }
-  throw new HttpError(502, 'AI servisi geÃ§erli bir yanÄ±t dÃ¶ndÃ¼rmedi.');
+  throw new HttpError(502, 'AI servisi geçerli bir yanıt döndürmedi.');
 };
 
 async function generateWithOpenAI(prompt: string, model: string, schema: typeof summarySchema | typeof draftSchema): Promise<ProviderResult> {
   const apiKey = Deno.env.get('OPENAI_API_KEY');
-  if (!apiKey) throw new HttpError(503, 'AI servisi henÃ¼z yapÄ±landÄ±rÄ±lmadÄ±.');
+  if (!apiKey) throw new HttpError(503, 'AI servisi henüz yapılandırılmadı.');
   const response = await fetchWithTimeout('https://api.openai.com/v1/responses', {
     method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ model, instructions: systemInstruction, input: prompt, max_output_tokens: 4096, text: { format: { type: 'json_schema', name: 'clinical_assistant_output', strict: true, schema } } }),
   });
-  if (!response.ok) throw new HttpError(502, 'AI saÄŸlayÄ±cÄ±sÄ± isteÄŸi tamamlayamadÄ±.');
+  if (!response.ok) throw new HttpError(502, 'AI sağlayıcısı isteği tamamlayamadı.');
   const payload = await response.json() as Record<string, unknown>;
   const usage = (payload.usage ?? {}) as Record<string, unknown>;
   let value: unknown = null;
@@ -136,16 +137,16 @@ async function generateWithOpenAI(prompt: string, model: string, schema: typeof 
 
 async function generateWithGemini(prompt: string, model: string, schema: typeof summarySchema | typeof draftSchema): Promise<ProviderResult> {
   const apiKey = Deno.env.get('GEMINI_API_KEY');
-  if (!apiKey) throw new HttpError(503, 'AI servisi henÃ¼z yapÄ±landÄ±rÄ±lmadÄ±.');
+  if (!apiKey) throw new HttpError(503, 'AI servisi henüz yapılandırılmadı.');
   const response = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify({ systemInstruction: { parts: [{ text: systemInstruction }] }, contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', responseJsonSchema: schema, maxOutputTokens: 4096, thinkingConfig: { thinkingLevel: 'low' } } }),
   });
-  if (!response.ok) throw new HttpError(502, 'AI saÄŸlayÄ±cÄ±sÄ± isteÄŸi tamamlayamadÄ±.');
+  if (!response.ok) throw new HttpError(502, 'AI sağlayıcısı isteği tamamlayamadı.');
   const payload = await response.json() as Record<string, unknown>;
   const candidates = payload.candidates as { content?: { parts?: { text?: string }[] } }[] | undefined;
   const text = candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new HttpError(502, 'AI servisi geÃ§erli bir yanÄ±t dÃ¶ndÃ¼rmedi.');
+  if (!text) throw new HttpError(502, 'AI servisi geçerli bir yanıt döndürmedi.');
   const usage = (payload.usageMetadata ?? {}) as Record<string, unknown>;
   let value: unknown = null;
   try { value = JSON.parse(text); } catch { /* Validator reports invalid_shape. */ }
@@ -156,7 +157,7 @@ const serializeForValidation = (value: unknown): string | null => {
   try { return JSON.stringify(value); } catch { return null; }
 };
 const hasUnsafeOutput = (serialized: string) => /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i.test(serialized)
-  || /\b(?:recommend(?:s|ed|ing)?|prescribe(?:s|d)?|should\s+(?:start|take|use)|(?:ilaÃ§|tedavi)\s+(?:baÅŸlanmalÄ±|baÅŸlayÄ±n|kullanÄ±n|Ã¶nerilir|Ã¶neriyorum))\b/i.test(serialized);
+  || /\b(?:recommend(?:s|ed|ing)?|prescribe(?:s|d)?|should\s+(?:start|take|use)|(?:ilaç|tedavi)\s+(?:başlanmalı|başlayın|kullanın|önerilir|öneriyorum))\b/i.test(serialized);
 const validLimitations = (value: unknown) => Array.isArray(value) && value.length <= 6 && value.every((item) => typeof item === 'string' && item.length <= 300);
 
 const validateSummary = (value: unknown, refs: Set<string>): { ok: true; value: SummaryOutput } | { ok: false; reason: ValidationReason } => {
@@ -183,13 +184,14 @@ const validateDraft = (value: unknown, source: CurrentNote): { ok: true; value: 
   if (hasUnsafeOutput(serialized)) return { ok: false, reason: serialized.match(/[0-9a-f]{8}-/) ? 'uuid_leak' : 'disallowed_claim' };
   try { assertNoForbiddenAIProviderKeys(value); } catch (error) { if (error instanceof AIProviderPrivacyError) return { ok: false, reason: 'invalid_shape' }; throw error; }
   const item = value as Partial<DraftOutput>;
-  if (item.noteFormat !== source.noteFormat || !Array.isArray(item.evidenceRefs) || item.evidenceRefs.length !== 1 || item.evidenceRefs[0] !== 'CURRENT_NOTE' || !validLimitations(item.limitations)) return { ok: false, reason: 'invalid_evidence_ref' };
+  const boundaryFailure = validateClinicalNoteDraftBoundary(source, item);
+  if (boundaryFailure) return { ok: false, reason: boundaryFailure };
+  if (!validLimitations(item.limitations)) return { ok: false, reason: 'invalid_limitations' };
   const fields = ['freeTextDraft', 'subjective', 'objective', 'assessment', 'plan'] as const;
   const limits = { freeTextDraft: 10000, subjective: 5000, objective: 5000, assessment: 5000, plan: 5000 };
   if (fields.some((field) => item[field] !== null && (typeof item[field] !== 'string' || (item[field] as string).length > limits[field]))) return { ok: false, reason: 'invalid_shape' };
   if (source.noteFormat === 'free_text' && (typeof item.freeTextDraft !== 'string' || fields.slice(1).some((field) => item[field] !== null))) return { ok: false, reason: 'invalid_shape' };
   if (source.noteFormat === 'soap' && (item.freeTextDraft !== null || fields.slice(1).some((field) => item[field] === null))) return { ok: false, reason: 'invalid_shape' };
-  if (source.noteFormat === 'soap' && !source.assessment?.trim() && item.assessment?.trim()) return { ok: false, reason: 'disallowed_claim' };
   return { ok: true, value: item as DraftOutput };
 };
 
@@ -199,30 +201,30 @@ Deno.serve(async (request) => {
   const startedAt = Date.now();
   try {
     const authorization = request.headers.get('Authorization');
-    if (!authorization?.startsWith('Bearer ')) throw new HttpError(401, 'Oturum bulunamadÄ±.');
+    if (!authorization?.startsWith('Bearer ')) throw new HttpError(401, 'Oturum bulunamadı.');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const publishableKey = getSupabasePublishableKey();
-    if (!supabaseUrl || !publishableKey) throw new HttpError(503, 'Servis yapÄ±landÄ±rmasÄ± eksik.');
+    if (!supabaseUrl || !publishableKey) throw new HttpError(503, 'Servis yapılandırması eksik.');
     const client = createClient(supabaseUrl, publishableKey, { global: { headers: { Authorization: authorization } }, auth: { persistSession: false } });
     const { data: authData, error: authError } = await client.auth.getUser();
-    if (authError || !authData.user) throw new HttpError(401, 'Oturum doÄŸrulanamadÄ±.');
+    if (authError || !authData.user) throw new HttpError(401, 'Oturum doğrulanamadı.');
     const { data: role, error: roleError } = await client.from('user_roles').select('role').eq('user_id', authData.user.id).single();
-    if (roleError || role?.role !== 'doctor') throw new HttpError(403, 'Doktor yetkisi bulunamadÄ±.');
+    if (roleError || role?.role !== 'doctor') throw new HttpError(403, 'Doktor yetkisi bulunamadı.');
 
     const body = await request.json() as Record<string, unknown>;
     const allowedRequestKeys = new Set(['appointmentId', 'action', 'currentNote']);
-    if (Object.keys(body).some((key) => !allowedRequestKeys.has(key))) throw new HttpError(400, 'GeÃ§ersiz istek.');
-    if (typeof body.appointmentId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(body.appointmentId)) throw new HttpError(400, 'GeÃ§ersiz randevu kimliÄŸi.');
-    if (body.action !== 'summary' && body.action !== 'clinical_note_draft') throw new HttpError(400, 'GeÃ§ersiz Klinik Asistan iÅŸlemi.');
+    if (Object.keys(body).some((key) => !allowedRequestKeys.has(key))) throw new HttpError(400, 'Geçersiz istek.');
+    if (typeof body.appointmentId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(body.appointmentId)) throw new HttpError(400, 'Geçersiz randevu kimliği.');
+    if (body.action !== 'summary' && body.action !== 'clinical_note_draft') throw new HttpError(400, 'Geçersiz Klinik Asistan işlemi.');
     const action = body.action as ClinicalAssistantAction;
-    if (action === 'summary' && 'currentNote' in body) throw new HttpError(400, 'Ã–zet isteÄŸi gereksiz klinik not girdisi iÃ§eremez.');
+    if (action === 'summary' && 'currentNote' in body) throw new HttpError(400, 'Özet isteği gereksiz klinik not girdisi içeremez.');
     if (action === 'clinical_note_draft' && !('currentNote' in body)) throw new HttpError(400, 'Klinik not girdisi eksik.');
 
     const { data: rows, error: contextError } = await client.rpc('get_doctor_clinical_assistant_context', { p_appointment_id: body.appointmentId });
-    if (contextError) throw new HttpError(403, 'Randevu baÄŸlamÄ±na eriÅŸilemedi.');
+    if (contextError) throw new HttpError(403, 'Randevu bağlamına erişilemedi.');
     const context = (rows?.[0] ?? null) as AssistantContext | null;
-    if (!context) throw new HttpError(403, 'Randevu bulunamadÄ± veya eriÅŸim yetkiniz yok.');
-    if (!isClinicalAssistantActionAllowed(context.appointment_status, action)) throw new HttpError(403, 'Bu randevu durumunda bu Klinik Asistan iÅŸlemi kullanÄ±lamaz.');
+    if (!context) throw new HttpError(403, 'Randevu bulunamadı veya erişim yetkiniz yok.');
+    if (!isClinicalAssistantActionAllowed(context.appointment_status, action)) throw new HttpError(403, 'Bu randevu durumunda bu Klinik Asistan işlemi kullanılamaz.');
 
     const feature = action === 'summary' ? 'clinical_assistant_summary' : 'clinical_note_draft';
     if (action === 'summary') {
@@ -230,21 +232,21 @@ Deno.serve(async (request) => {
       if (records.length === 0) {
         const { data: usageId, error: usageError } = await client.rpc('start_ai_usage', { p_feature: feature, p_provider: 'none', p_model: 'deterministic', p_limit: RATE_LIMIT_PER_MINUTE });
         if (usageError) {
-          if (usageError.message.includes('AI_RATE_LIMIT')) throw new HttpError(429, 'Ã‡ok fazla istek gÃ¶nderildi. LÃ¼tfen bir dakika sonra tekrar deneyin.');
-          throw new HttpError(500, 'AI kullanÄ±m kaydÄ± baÅŸlatÄ±lamadÄ±.');
+          if (usageError.message.includes('AI_RATE_LIMIT')) throw new HttpError(429, 'Çok fazla istek gönderildi. Lütfen bir dakika sonra tekrar deneyin.');
+          throw new HttpError(500, 'AI kullanım kaydı başlatılamadı.');
         }
         await client.rpc('finish_ai_usage', { p_usage_id: usageId, p_input_tokens: 0, p_output_tokens: 0, p_latency_ms: Date.now() - startedAt, p_status: 'no_history', p_error_code: null });
-        return json({ result: { summary: 'Ã–zetlenecek klinik kayÄ±t bulunmuyor.', keyPoints: [], limitations: ['Mevcut veya geÃ§miÅŸ klinik kayÄ±t bulunamadÄ±.'] } });
+        return json({ result: { summary: 'Özetlenecek klinik kayıt bulunmuyor.', keyPoints: [], limitations: ['Mevcut veya geçmiş klinik kayıt bulunamadı.'] } });
       }
       return await runProvider(client, feature, buildClinicalAssistantSummaryProviderContext(records), summarySchema, (value) => validateSummary(value, new Set(records.map((record) => record.ref))), startedAt);
     }
 
     const currentNote = normalizeCurrentNote(body.currentNote);
-    if (!currentNote) throw new HttpError(400, 'Klinik not girdisi geÃ§ersiz.');
-    if (!hasMeaningfulCurrentNote(currentNote)) throw new HttpError(400, 'Ã–nce klinik not alanÄ±na bilgi girin.');
+    if (!currentNote) throw new HttpError(400, 'Klinik not girdisi geçersiz.');
+    if (!hasMeaningfulCurrentNote(currentNote)) throw new HttpError(400, 'Önce klinik not alanına bilgi girin.');
     return await runProvider(client, feature, buildClinicalAssistantDraftProviderContext(currentNote), draftSchema, (value) => validateDraft(value, currentNote), startedAt);
   } catch (error) {
-    const safeError = error instanceof HttpError ? error : new HttpError(500, 'Klinik Asistan isteÄŸi tamamlanamadÄ±.');
+    const safeError = error instanceof HttpError ? error : new HttpError(500, 'Klinik Asistan isteği tamamlanamadı.');
     return json({ error: safeError.message }, safeError.status);
   }
 });
@@ -258,15 +260,15 @@ async function runProvider<T>(
   startedAt: number,
 ): Promise<Response> {
   const provider = (Deno.env.get('AI_PROVIDER') ?? 'openai').toLowerCase() as ProviderName;
-  if (!['openai', 'gemini'].includes(provider)) throw new HttpError(503, 'AI saÄŸlayÄ±cÄ±sÄ± yapÄ±landÄ±rmasÄ± geÃ§ersiz.');
+  if (!['openai', 'gemini'].includes(provider)) throw new HttpError(503, 'AI sağlayıcısı yapılandırması geçersiz.');
   const model = Deno.env.get('AI_MODEL');
-  if (!model) throw new HttpError(503, 'AI servisi henÃ¼z yapÄ±landÄ±rÄ±lmadÄ±.');
+  if (!model) throw new HttpError(503, 'AI servisi henüz yapılandırılmadı.');
   const prompt = `Verified source content follows. Return only the requested JSON.\n${JSON.stringify(providerContext)}`;
-  if (prompt.length > MAX_CONTEXT_CHARS) throw new HttpError(413, 'Klinik baÄŸlam gÃ¼venli iÅŸleme sÄ±nÄ±rÄ±nÄ± aÅŸÄ±yor.');
+  if (prompt.length > MAX_CONTEXT_CHARS) throw new HttpError(413, 'Klinik bağlam güvenli işleme sınırını aşıyor.');
   const { data: usageId, error: usageError } = await client.rpc('start_ai_usage', { p_feature: feature, p_provider: provider, p_model: model, p_limit: RATE_LIMIT_PER_MINUTE });
   if (usageError) {
-    if (usageError.message.includes('AI_RATE_LIMIT')) throw new HttpError(429, 'Ã‡ok fazla istek gÃ¶nderildi. LÃ¼tfen bir dakika sonra tekrar deneyin.');
-    throw new HttpError(500, 'AI kullanÄ±m kaydÄ± baÅŸlatÄ±lamadÄ±.');
+    if (usageError.message.includes('AI_RATE_LIMIT')) throw new HttpError(429, 'Çok fazla istek gönderildi. Lütfen bir dakika sonra tekrar deneyin.');
+    throw new HttpError(500, 'AI kullanım kaydı başlatılamadı.');
   }
   let providerResult: ProviderResult;
   try { providerResult = provider === 'openai' ? await generateWithOpenAI(prompt, model, schema) : await generateWithGemini(prompt, model, schema); }
@@ -278,7 +280,7 @@ async function runProvider<T>(
   const validation = validate(providerResult.value);
   if ('reason' in validation) {
     await client.rpc('finish_ai_usage', { p_usage_id: usageId, p_input_tokens: providerResult.inputTokens, p_output_tokens: providerResult.outputTokens, p_latency_ms: Date.now() - startedAt, p_status: 'invalid_output', p_error_code: validation.reason });
-    throw new HttpError(502, 'AI servisi geÃ§erli ve gÃ¼venli bir yanÄ±t dÃ¶ndÃ¼rmedi.');
+    throw new HttpError(502, 'AI servisi geçerli ve güvenli bir yanıt döndürmedi.');
   }
   await client.rpc('finish_ai_usage', { p_usage_id: usageId, p_input_tokens: providerResult.inputTokens, p_output_tokens: providerResult.outputTokens, p_latency_ms: Date.now() - startedAt, p_status: 'success', p_error_code: null });
   return json({ result: validation.value });

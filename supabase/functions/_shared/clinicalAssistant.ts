@@ -45,3 +45,29 @@ export const normalizeCurrentNote = (value: unknown): CurrentNote | null => {
 
 export const hasOnlyAllowedEvidenceRefs = (refs: unknown, allowed: Set<string>) =>
   Array.isArray(refs) && refs.length > 0 && refs.every((ref) => typeof ref === 'string' && allowed.has(ref));
+
+type DraftBoundaryCandidate = {
+  noteFormat?: unknown;
+  subjective?: unknown;
+  objective?: unknown;
+  assessment?: unknown;
+  plan?: unknown;
+  evidenceRefs?: unknown;
+};
+
+export const validateClinicalNoteDraftBoundary = (
+  source: CurrentNote,
+  output: DraftBoundaryCandidate,
+): 'invalid_shape' | 'invalid_evidence_ref' | 'disallowed_claim' | null => {
+  if (output.noteFormat !== source.noteFormat) return 'invalid_shape';
+  if (!hasOnlyAllowedEvidenceRefs(output.evidenceRefs, new Set(['CURRENT_NOTE']))
+    || (output.evidenceRefs as unknown[]).length !== 1) return 'invalid_evidence_ref';
+  if (source.noteFormat !== 'soap') return null;
+
+  for (const field of ['subjective', 'objective', 'assessment', 'plan'] as const) {
+    const sourceEmpty = typeof source[field] !== 'string' || !source[field].trim();
+    const outputPopulated = typeof output[field] === 'string' && Boolean(output[field].trim());
+    if (sourceEmpty && outputPopulated) return 'disallowed_claim';
+  }
+  return null;
+};

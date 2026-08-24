@@ -3,6 +3,7 @@ import {
   hasOnlyAllowedEvidenceRefs,
   isClinicalAssistantActionAllowed,
   normalizeCurrentNote,
+  validateClinicalNoteDraftBoundary,
   type ClinicalAssistantStatus,
 } from './clinicalAssistant.ts';
 
@@ -20,6 +21,41 @@ Deno.test('Clinical Assistant status/action matrix is enforced', () => {
     assert(isClinicalAssistantActionAllowed(status, 'summary') === summary, `${status} summary mismatch`);
     assert(isClinicalAssistantActionAllowed(status, 'clinical_note_draft') === draft, `${status} draft mismatch`);
   }
+});
+
+Deno.test('SOAP draft cannot populate a source-empty field', () => {
+  const populated = { subjective: 'S', objective: 'O', assessment: 'A', plan: 'P' };
+  for (const field of Object.keys(populated) as (keyof typeof populated)[]) {
+    const source = {
+      noteFormat: 'soap' as const, clinicalNote: null,
+      subjective: populated.subjective, objective: populated.objective,
+      assessment: populated.assessment, plan: populated.plan,
+      [field]: '   ',
+    };
+    const output = { noteFormat: 'soap', evidenceRefs: ['CURRENT_NOTE'], ...populated };
+    assert(validateClinicalNoteDraftBoundary(source, output) === 'disallowed_claim', `${field} was populated from an empty source field`);
+  }
+});
+
+Deno.test('SOAP populated fields may be rewritten and empty fields may remain null or empty', () => {
+  const source = {
+    noteFormat: 'soap' as const, clinicalNote: null,
+    subjective: 'Original S', objective: 'Original O', assessment: null, plan: '   ',
+  };
+  const output = {
+    noteFormat: 'soap', evidenceRefs: ['CURRENT_NOTE'],
+    subjective: 'Rewritten S', objective: 'Short O', assessment: null, plan: '',
+  };
+  assert(validateClinicalNoteDraftBoundary(source, output) === null, 'Safe SOAP rewrite was rejected');
+});
+
+Deno.test('draft note format and CURRENT_NOTE evidence remain locked', () => {
+  const source = {
+    noteFormat: 'soap' as const, clinicalNote: null,
+    subjective: 'S', objective: null, assessment: null, plan: null,
+  };
+  assert(validateClinicalNoteDraftBoundary(source, { noteFormat: 'free_text', evidenceRefs: ['CURRENT_NOTE'] }) === 'invalid_shape', 'Note format change was accepted');
+  assert(validateClinicalNoteDraftBoundary(source, { noteFormat: 'soap', evidenceRefs: ['V1'] }) === 'invalid_evidence_ref', 'Unknown evidence was accepted');
 });
 
 Deno.test('empty drafts are rejected before provider use and extra input keys are rejected', () => {
