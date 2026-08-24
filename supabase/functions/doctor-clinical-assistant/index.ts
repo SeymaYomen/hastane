@@ -191,7 +191,7 @@ const validateDraft = (value: unknown, source: CurrentNote): { ok: true; value: 
   const limits = { freeTextDraft: 10000, subjective: 5000, objective: 5000, assessment: 5000, plan: 5000 };
   if (fields.some((field) => item[field] !== null && (typeof item[field] !== 'string' || (item[field] as string).length > limits[field]))) return { ok: false, reason: 'invalid_shape' };
   if (source.noteFormat === 'free_text' && (typeof item.freeTextDraft !== 'string' || fields.slice(1).some((field) => item[field] !== null))) return { ok: false, reason: 'invalid_shape' };
-  if (source.noteFormat === 'soap' && (item.freeTextDraft !== null || fields.slice(1).some((field) => item[field] === null))) return { ok: false, reason: 'invalid_shape' };
+  if (source.noteFormat === 'soap' && item.freeTextDraft !== null) return { ok: false, reason: 'invalid_shape' };
   return { ok: true, value: item as DraftOutput };
 };
 
