@@ -23,6 +23,7 @@ import DoctorAppointmentsPage from './pages/DoctorAppointmentsPage';
 import DoctorPatientsPage from './pages/DoctorPatientsPage';
 import DoctorPatientTimelinePage from './pages/DoctorPatientTimelinePage';
 import DoctorVisitsPage from './pages/DoctorVisitsPage';
+import NotificationsPage from './pages/NotificationsPage';
 import ChatbotButton from './components/Chatbot/ChatbotButton';
 import ScrollToTop from './components/ScrollToTop';
 import './App.css';
@@ -64,6 +65,7 @@ function AppContent() {
                   </PrivateRoute>
                 } 
               />
+              <Route path="/notifications" element={<PrivateRoute><NotificationsPage /></PrivateRoute>} />
               <Route
                 path="/health-record"
                 element={

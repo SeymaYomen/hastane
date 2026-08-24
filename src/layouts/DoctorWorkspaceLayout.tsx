@@ -4,6 +4,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import { supabase } from '../lib/supabase';
 import { getCurrentDoctorProfile, type DoctorProfile } from '../services/doctor/doctorProfileService';
+import NotificationBell from '../components/notifications/NotificationBell';
 
 const links = [
   { to: '/doctor', label: 'Genel Bakış', icon: LayoutDashboard, end: true },
@@ -65,7 +66,7 @@ const DoctorWorkspaceLayout = () => {
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 sm:px-6">
           <button type="button" onClick={() => setOpen(true)} className="rounded-lg p-2 text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 dark:text-slate-200 lg:hidden" aria-label="Doktor menüsünü aç"><Menu className="h-5 w-5" /></button>
           <div className="hidden lg:block"><p className="text-sm font-semibold text-slate-900 dark:text-white">Klinik çalışma alanı</p></div>
-          <div className="flex items-center gap-3"><ThemeSwitcher /><span className="hidden text-sm text-slate-600 dark:text-slate-300 sm:block">{profile?.title} {profile?.full_name}</span></div>
+          <div className="flex items-center gap-3"><ThemeSwitcher /><NotificationBell className="text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800" /><span className="hidden text-sm text-slate-600 dark:text-slate-300 sm:block">{profile?.title} {profile?.full_name}</span></div>
         </header>
         <main><Outlet context={{ doctorProfile: profile }} /></main>
       </div>

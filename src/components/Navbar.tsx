@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import { clinicConfig } from '../config/clinicConfig';
 import { useTheme } from '../contexts/ThemeContext';
 import { getCurrentUserRole, type UserRole } from '../services/auth/roleService';
+import NotificationBell from './notifications/NotificationBell';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -155,6 +156,7 @@ const Navbar = () => {
 
           <div className="hidden md:flex items-center space-x-4">
             <ThemeSwitcher />
+            {isAuthenticated && <NotificationBell className={navTextClass} />}
             
             <a
               href={`tel:+90${clinicConfig.contact.phone.replace(/\D/g, '').slice(1)}`}
@@ -228,6 +230,7 @@ const Navbar = () => {
           {/* Mobile menu button */}
           <div className="md:hidden flex items-center space-x-4">
             <ThemeSwitcher />
+            {isAuthenticated && <NotificationBell className={navTextClass} />}
             <button
               onClick={toggleMenu}
               className={`rounded-full p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${isHighContrast ? 'text-white border border-white' : isLight ? 'text-[#0F172A] border border-[#0F172A]/10 bg-white/80' : 'text-white border border-white/15 bg-white/10'}`}
