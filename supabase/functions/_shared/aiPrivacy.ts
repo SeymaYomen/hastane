@@ -37,6 +37,12 @@ export type DoctorBriefProviderContext = {
   pastVisits: DoctorBriefProviderVisit[];
 };
 
+export type ClinicalAssistantRecord = DoctorBriefProviderVisit;
+export type ClinicalAssistantSummaryProviderContext = { records: ClinicalAssistantRecord[] };
+export type ClinicalAssistantDraftProviderContext = {
+  currentNote: Omit<ClinicalAssistantRecord, 'date'>;
+};
+
 type DoctorBriefContextSource = {
   past_visits: DoctorBriefProviderVisit[];
 };
@@ -85,6 +91,43 @@ export function buildDoctorBriefProviderContext(
     })),
   };
 
+  assertNoForbiddenAIProviderKeys(providerContext);
+  return providerContext;
+}
+
+export function buildClinicalAssistantSummaryProviderContext(
+  records: ClinicalAssistantRecord[],
+): ClinicalAssistantSummaryProviderContext {
+  const providerContext: ClinicalAssistantSummaryProviderContext = {
+    records: records.map((record) => ({
+      ref: record.ref,
+      date: record.date,
+      noteFormat: record.noteFormat,
+      clinicalNote: record.clinicalNote,
+      subjective: record.subjective,
+      objective: record.objective,
+      assessment: record.assessment,
+      plan: record.plan,
+    })),
+  };
+  assertNoForbiddenAIProviderKeys(providerContext);
+  return providerContext;
+}
+
+export function buildClinicalAssistantDraftProviderContext(
+  note: Omit<ClinicalAssistantRecord, 'ref' | 'date'>,
+): ClinicalAssistantDraftProviderContext {
+  const providerContext: ClinicalAssistantDraftProviderContext = {
+    currentNote: {
+      ref: 'CURRENT_NOTE',
+      noteFormat: note.noteFormat,
+      clinicalNote: note.clinicalNote,
+      subjective: note.subjective,
+      objective: note.objective,
+      assessment: note.assessment,
+      plan: note.plan,
+    },
+  };
   assertNoForbiddenAIProviderKeys(providerContext);
   return providerContext;
 }

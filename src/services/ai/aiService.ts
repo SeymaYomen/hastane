@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabase';
-import type { PreVisitBrief } from './types';
+import type { ClinicalAssistantCurrentNote, ClinicalAssistantDraft, ClinicalAssistantSummary, PreVisitBrief } from './types';
 
 const CLIENT_TIMEOUT_MS = 60_000;
 
@@ -47,6 +47,7 @@ const getErrorResponse = (error: unknown): ErrorResponse | null => {
 const safeBackendMessage = (value: unknown): string | null => {
   if (typeof value !== 'string') return null;
   const message = value.trim();
+  // eslint-disable-next-line no-control-regex
   if (!message || message.length > 300 || /[\u0000-\u001f]/.test(message)) return null;
   if (/https?:\/\/|api[_ -]?key|authorization|bearer|stack|supabase|gemini|openai/i.test(message)) return null;
   return message;
@@ -129,3 +130,55 @@ export const getPreVisitBrief = async (appointmentId: string): Promise<PreVisitB
     if (timeout) clearTimeout(timeout);
   }
 };
+
+const isClinicalAssistantSummary = (value: unknown): value is ClinicalAssistantSummary => {
+  if (!value || typeof value !== 'object') return false;
+  const result = value as Partial<ClinicalAssistantSummary>;
+  return typeof result.summary === 'string'
+    && Array.isArray(result.keyPoints)
+    && result.keyPoints.every((point) => point && typeof point.text === 'string'
+      && Array.isArray(point.evidenceRefs) && point.evidenceRefs.every((ref) => typeof ref === 'string'))
+    && Array.isArray(result.limitations) && result.limitations.every((item) => typeof item === 'string');
+};
+
+const isClinicalAssistantDraft = (value: unknown): value is ClinicalAssistantDraft => {
+  if (!value || typeof value !== 'object') return false;
+  const result = value as Partial<ClinicalAssistantDraft>;
+  return (result.noteFormat === 'free_text' || result.noteFormat === 'soap')
+    && (result.freeTextDraft === null || typeof result.freeTextDraft === 'string')
+    && (result.subjective === null || typeof result.subjective === 'string')
+    && (result.objective === null || typeof result.objective === 'string')
+    && (result.assessment === null || typeof result.assessment === 'string')
+    && (result.plan === null || typeof result.plan === 'string')
+    && Array.isArray(result.evidenceRefs) && result.evidenceRefs.every((ref) => typeof ref === 'string')
+    && Array.isArray(result.limitations) && result.limitations.every((item) => typeof item === 'string');
+};
+
+const invokeClinicalAssistant = async <T>(
+  body: Record<string, unknown>,
+  validate: (value: unknown) => value is T,
+): Promise<T> => {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => reject(new AIServiceError('timeout', 'AI servisi zamanÄ±nda yanÄ±t vermedi. LÃ¼tfen tekrar deneyin.')), CLIENT_TIMEOUT_MS);
+  });
+  try {
+    const { data, error } = await Promise.race([
+      supabase.functions.invoke('doctor-clinical-assistant', { body }),
+      timeoutPromise,
+    ]);
+    if (error) throw await normalizeInvokeError(error);
+    if (!validate(data?.result)) throw new AIServiceError('invalid_response', 'AI servisi geÃ§erli ve gÃ¼venli bir yanÄ±t dÃ¶ndÃ¼rmedi.');
+    return data.result;
+  } catch (error) {
+    throw await normalizeInvokeError(error);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+};
+
+export const getClinicalAssistantSummary = (appointmentId: string) =>
+  invokeClinicalAssistant({ appointmentId, action: 'summary' }, isClinicalAssistantSummary);
+
+export const getClinicalNoteDraft = (appointmentId: string, currentNote: ClinicalAssistantCurrentNote) =>
+  invokeClinicalAssistant({ appointmentId, action: 'clinical_note_draft', currentNote }, isClinicalAssistantDraft);

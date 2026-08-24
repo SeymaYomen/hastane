@@ -2,6 +2,8 @@ import {
   AIProviderPrivacyError,
   assertNoForbiddenAIProviderKeys,
   buildDoctorBriefProviderContext,
+  buildClinicalAssistantDraftProviderContext,
+  buildClinicalAssistantSummaryProviderContext,
 } from './aiPrivacy.ts';
 
 const assert = (condition: unknown, message: string) => {
@@ -57,6 +59,22 @@ Deno.test('doctor brief provider context explicitly includes only historical cli
     }),
     'Provider context did not match the exact allowlisted schema',
   );
+});
+
+Deno.test('Clinical Assistant contexts use exact summary and CURRENT_NOTE allowlists', () => {
+  const record = {
+    ref: 'V1', date: '2026-08-20', noteFormat: 'free_text' as const,
+    clinicalNote: 'clinical', subjective: null, objective: null, assessment: null, plan: null,
+  };
+  const summary = buildClinicalAssistantSummaryProviderContext([{ ...record, appointment_id: 'not-forwarded' } as typeof record]);
+  const draft = buildClinicalAssistantDraftProviderContext({
+    noteFormat: 'soap', clinicalNote: null, subjective: 's', objective: '', assessment: '', plan: '',
+  });
+  assert(JSON.stringify(summary) === JSON.stringify({ records: [record] }), 'Summary allowlist mismatch');
+  assert(JSON.stringify(draft) === JSON.stringify({ currentNote: {
+    ref: 'CURRENT_NOTE', noteFormat: 'soap', clinicalNote: null,
+    subjective: 's', objective: '', assessment: '', plan: '',
+  } }), 'Draft allowlist mismatch');
 });
 
 Deno.test('provider privacy assertion rejects forbidden keys at any depth', () => {

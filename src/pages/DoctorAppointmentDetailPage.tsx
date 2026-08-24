@@ -12,6 +12,8 @@ import PreVisitBriefPanel from '../components/doctor/PreVisitBriefPanel';
 import PrescriptionSection from '../components/doctor/PrescriptionSection';
 import LabOrderSection from '../components/doctor/LabOrderSection';
 import MedicalDocumentsSection from '../components/doctor/MedicalDocumentsSection';
+import ClinicalAssistantPanel from '../components/doctor/ClinicalAssistantPanel';
+import type { ClinicalAssistantDraft } from '../services/ai/types';
 
 const formatDate = (date: string) => {
   const [year, month, day] = date.split('-');
@@ -120,6 +122,18 @@ const DoctorAppointmentDetailPage = () => {
   };
 
   const handleSubmit = (event: FormEvent) => { event.preventDefault(); void save(false); };
+  const applyClinicalDraft = (draft: ClinicalAssistantDraft) => {
+    if (draft.noteFormat !== noteFormat) return;
+    setError(''); setSuccess('');
+    if (draft.noteFormat === 'free_text') {
+      setClinicalNote(draft.freeTextDraft ?? '');
+    } else {
+      setSubjective(draft.subjective ?? '');
+      setObjective(draft.objective ?? '');
+      setAssessment(draft.assessment ?? '');
+      setPlan(draft.plan ?? '');
+    }
+  };
   if (loading) return <div className="flex min-h-[60vh] items-center justify-center text-slate-600 dark:text-slate-300">Muayene detayı yükleniyor...</div>;
   if (!detail) return <div className="mx-auto max-w-3xl px-4 py-10"><p>Randevu bulunamadı veya erişim yetkiniz yok.</p>{error && <p className="mt-3 text-rose-600">{error}</p>}<Link to="/doctor" className="mt-5 inline-flex text-cyan-700">← Doktor Paneline Dön</Link></div>;
 
@@ -127,6 +141,14 @@ const DoctorAppointmentDetailPage = () => {
   const completed = detail.appointment_status === 'completed';
   const soapValues = { subjective, objective, assessment, plan };
   const setSoapValue = { subjective: setSubjective, objective: setObjective, assessment: setAssessment, plan: setPlan };
+  const currentNote = {
+    noteFormat,
+    clinicalNote: noteFormat === 'free_text' ? clinicalNote : null,
+    subjective: noteFormat === 'soap' ? subjective : null,
+    objective: noteFormat === 'soap' ? objective : null,
+    assessment: noteFormat === 'soap' ? assessment : null,
+    plan: noteFormat === 'soap' ? plan : null,
+  };
 
   return <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
     <Link to="/doctor" className="inline-flex items-center gap-2 text-sm font-medium text-cyan-700 dark:text-cyan-300"><ArrowLeft className="h-4 w-4" /> Doktor Paneline Dön</Link>
@@ -136,6 +158,7 @@ const DoctorAppointmentDetailPage = () => {
     {error && <p role="alert" className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200">{error}</p>}
     {success && <p role="status" className="mt-5 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200"><CheckCircle2 className="h-4 w-4" />{success}</p>}
     <PreVisitBriefPanel appointmentId={detail.appointment_id} />
+    <ClinicalAssistantPanel appointmentId={detail.appointment_id} status={detail.appointment_status} currentNote={currentNote} onApplyDraft={applyClinicalDraft} />
     <form onSubmit={handleSubmit} className="mt-6 space-y-6 rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-950">
       <fieldset disabled={locked || saving}><legend className="font-semibold">Not Türü</legend><div className="mt-3 inline-flex rounded-xl border border-slate-200 p-1 dark:border-slate-700">{(['free_text', 'soap'] as const).map((format) => <button key={format} type="button" onClick={() => changeFormat(format)} className={`rounded-lg px-4 py-2 text-sm font-medium ${noteFormat === format ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}>{format === 'free_text' ? 'Serbest Not' : 'SOAP'}</button>)}</div></fieldset>
       {noteFormat === 'free_text' ? <div><label htmlFor="clinical-note" className="font-semibold">Doktor Muayene Notu</label><p id="clinical-note-help" className="mt-1 text-sm text-slate-500">Doktora özel klinik kayıttır; hastaya gösterilmez.</p><textarea id="clinical-note" aria-describedby="clinical-note-help" maxLength={10000} rows={8} disabled={locked || saving} value={clinicalNote} onChange={(event) => { setError(''); setClinicalNote(event.target.value); }} className="mt-3 w-full rounded-xl border border-slate-300 bg-transparent p-3 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 disabled:opacity-60 dark:border-slate-700" /></div> : <div className="grid gap-5">{soapFields.map((field) => <div key={field.key}><label htmlFor={`soap-${field.key}`} className="font-semibold"><span className="mr-2 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-200">{field.letter}</span>{field.label}</label><p id={`soap-${field.key}-help`} className="mt-1 text-sm text-slate-500">{field.help}</p><textarea id={`soap-${field.key}`} aria-describedby={`soap-${field.key}-help`} maxLength={5000} rows={4} disabled={locked || saving} value={soapValues[field.key]} onChange={(event) => { setError(''); setSoapValue[field.key](event.target.value); }} className="mt-2 w-full rounded-xl border border-slate-300 bg-transparent p-3 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 disabled:opacity-60 dark:border-slate-700" /></div>)}</div>}
