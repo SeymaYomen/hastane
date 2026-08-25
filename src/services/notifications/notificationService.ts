@@ -23,8 +23,9 @@ export const NOTIFICATIONS_CHANGED_EVENT = 'notifications:changed';
 
 const notifyChanged = () => window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED_EVENT));
 
-export const getMyNotifications = async (): Promise<AppNotification[]> => {
-  const { data, error } = await supabase.rpc('get_my_notifications', { p_limit: 50 });
+export const getMyNotifications = async (limit = 50): Promise<AppNotification[]> => {
+  const safeLimit = Math.min(50, Math.max(1, Math.trunc(limit)));
+  const { data, error } = await supabase.rpc('get_my_notifications', { p_limit: safeLimit });
   if (error) throw error;
   return (data ?? []) as AppNotification[];
 };
