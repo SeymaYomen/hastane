@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Bell } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
 import { getUnreadNotificationCount, NOTIFICATIONS_CHANGED_EVENT } from '../../services/notifications/notificationService';
 
 const NotificationBell = ({ className = '' }: { className?: string }) => {
@@ -8,18 +9,59 @@ const NotificationBell = ({ className = '' }: { className?: string }) => {
 
   useEffect(() => {
     let mounted = true;
+    let currentUserId: string | null = null;
+    let notificationChannel: ReturnType<typeof supabase.channel> | null = null;
+
     const load = () => {
+      if (!currentUserId) return;
       void getUnreadNotificationCount().then((count) => {
         if (mounted) setUnreadCount(count);
       }).catch(() => {
         if (mounted) setUnreadCount(0);
       });
     };
-    load();
+
+    const subscribeForUser = (userId: string | null) => {
+      if (userId === currentUserId) return;
+      if (notificationChannel) {
+        void supabase.removeChannel(notificationChannel);
+        notificationChannel = null;
+      }
+
+      currentUserId = userId;
+      if (!userId) {
+        setUnreadCount(0);
+        return;
+      }
+
+      load();
+      notificationChannel = supabase
+        .channel(`notification-bell:${userId}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        }, load)
+        .subscribe();
+    };
+
+    void supabase.auth.getSession().then(({ data }) => {
+      if (mounted) subscribeForUser(data.session?.user.id ?? null);
+    });
+    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted) subscribeForUser(session?.user.id ?? null);
+    });
+
+    const handleFocus = () => load();
     window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, load);
+    window.addEventListener('focus', handleFocus);
     return () => {
       mounted = false;
+      authSubscription.unsubscribe();
+      if (notificationChannel) void supabase.removeChannel(notificationChannel);
       window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, load);
+      window.removeEventListener('focus', handleFocus);
     };
   }, []);
 
