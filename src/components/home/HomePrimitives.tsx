@@ -6,8 +6,8 @@ export type HomeTheme = 'light' | 'dark' | 'high-contrast';
 export const HomePageFrame = ({ children, theme }: { children: ReactNode; theme: HomeTheme }) => (
   <div className={`relative min-h-[calc(100vh-4rem)] overflow-hidden ${theme === 'high-contrast' ? 'bg-black text-white' : theme === 'light' ? 'bg-slate-50 text-slate-950' : 'bg-[#07111f] text-slate-100'}`}>
     {theme !== 'high-contrast' && (
-      <svg aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-10 h-64 w-full opacity-[0.08]" viewBox="0 0 1200 220" preserveAspectRatio="none">
-        <path d="M0 120h290l22-42 28 92 35-142 40 92h95l24-42 28 84 30-42h608" fill="none" stroke="#22d3ee" strokeWidth="3" />
+      <svg aria-hidden="true" className="pointer-events-none absolute right-0 top-24 hidden h-48 w-[42%] opacity-[0.05] sm:block" viewBox="0 0 600 180" preserveAspectRatio="none">
+        <path d="M0 108h140l18-28 24 62 30-112 34 78h70l20-30 24 58 28-28h212" fill="none" stroke="#22d3ee" strokeWidth="3" />
       </svg>
     )}
     <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">{children}</div>
@@ -18,9 +18,9 @@ export const HomeIntro = ({ eyebrow, title, description }: { eyebrow: string; ti
   const reduced = useReducedMotion();
   return (
     <motion.header initial={reduced ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-8 max-w-3xl">
-      <p className="mb-3 text-xs font-bold uppercase tracking-[0.22em] text-cyan-600 dark:text-cyan-300">{eyebrow}</p>
+      <p className="mb-3 text-xs font-bold uppercase tracking-[0.22em] text-[var(--color-accent)]">{eyebrow}</p>
       <h1 className="text-3xl font-black tracking-tight sm:text-5xl">{title}</h1>
-      <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300">{description}</p>
+      <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--color-text-secondary)]">{description}</p>
     </motion.header>
   );
 };
@@ -30,5 +30,5 @@ export const BentoCard = ({ children, className = '', theme }: { children: React
 );
 
 export const InlineState = ({ children, error = false }: { children: ReactNode; error?: boolean }) => (
-  <p role={error ? 'alert' : 'status'} className={`rounded-2xl border px-4 py-3 text-sm ${error ? 'border-rose-400/50 text-rose-600 dark:text-rose-300' : 'border-slate-300/60 text-slate-600 dark:border-white/10 dark:text-slate-300'}`}>{children}</p>
+  <p role={error ? 'alert' : 'status'} className={`rounded-2xl border px-4 py-3 text-sm ${error ? 'border-[var(--color-danger)] text-[var(--color-danger)]' : 'border-[var(--color-border-light)] text-[var(--color-text-secondary)]'}`}>{children}</p>
 );
