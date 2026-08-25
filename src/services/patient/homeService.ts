@@ -42,7 +42,11 @@ export const getNextPatientAppointment = async (): Promise<PatientHomeAppointmen
   const now = new Date();
   const today = localDate();
   const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  const next = (data ?? []).find((item) => item.date > today || item.time.slice(0, 5) >= currentTime);
+  const next = (data ?? []).find((item) =>
+    item.date > today
+    || (item.date === today && item.status === 'in_progress')
+    || (item.date === today && item.time.slice(0, 5) >= currentTime)
+  );
   if (!next) return null;
 
   const row = next as AppointmentRow;

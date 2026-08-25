@@ -29,10 +29,10 @@ export const PatientHomeDashboard = ({ theme }: { theme: HomeTheme }) => {
           <div className="mt-5">
             {appointment.loading && <InlineState>Randevu bilgisi yükleniyor…</InlineState>}
             {appointment.error && <InlineState error>Randevu bilgisi şu anda alınamadı.</InlineState>}
-            {!appointment.loading && !appointment.error && !appointment.value && <InlineState>Yaklaşan aktif bir randevunuz bulunmuyor.</InlineState>}
+            {!appointment.loading && !appointment.error && !appointment.value && <div><InlineState>Henüz yaklaşan randevunuz yok.</InlineState><Link to="/appointment" className="mt-4 inline-flex rounded-xl bg-cyan-600 px-4 py-2.5 font-semibold text-white hover:bg-cyan-700">Randevu Al</Link></div>}
             {appointment.value && <div><h2 className="text-2xl font-black">{appointment.value.department}</h2><p className="mt-1 text-slate-600 dark:text-slate-300">{appointment.value.doctorName}</p><div className="mt-5 flex flex-wrap gap-2 text-sm"><span className="rounded-full bg-cyan-500/10 px-3 py-1.5 text-cyan-700 dark:text-cyan-200">{formatDate(appointment.value.date)} · {appointment.value.time.slice(0, 5)}</span><span className="rounded-full bg-slate-500/10 px-3 py-1.5">{appointmentStatusLabels[appointment.value.status]}</span></div></div>}
           </div>
-          <Link to="/my-appointments" className="mt-6 inline-flex font-semibold text-cyan-600 hover:underline dark:text-cyan-300">Tüm randevularım</Link>
+          {appointment.value && <Link to="/my-appointments" className="mt-6 inline-flex font-semibold text-cyan-600 hover:underline dark:text-cyan-300">Tüm randevularım</Link>}
         </BentoCard>
         <BentoCard theme={theme}>
           <div className="flex items-center gap-2"><Bell className="h-5 w-5 text-cyan-500" /><h2 className="font-bold">Son bildirimler</h2></div>
