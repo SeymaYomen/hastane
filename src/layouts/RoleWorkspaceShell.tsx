@@ -13,6 +13,12 @@ type RoleWorkspaceShellProps = {
   headerLabel: string;
   navigationLabel: string;
   icon: ComponentType<LucideProps>;
+  navigationItems?: Array<{
+    to: string;
+    label: string;
+    icon: ComponentType<LucideProps>;
+    end?: boolean;
+  }>;
 };
 
 const RoleWorkspaceShell = ({
@@ -21,16 +27,18 @@ const RoleWorkspaceShell = ({
   headerLabel,
   navigationLabel,
   icon: WorkspaceIcon,
+  navigationItems,
 }: RoleWorkspaceShellProps) => {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { theme } = useTheme();
   const isHighContrast = theme === 'high-contrast';
   const mobileNavigationId = `${basePath.slice(1)}-mobile-navigation`;
-  const links = [
+  const defaultLinks = [
     { to: basePath, label: 'Genel Bakış', icon: LayoutDashboard, end: true },
     { to: '/profile', label: 'Profil', icon: UserRound, end: false },
   ];
+  const links = navigationItems ?? defaultLinks;
 
   useEffect(() => {
     if (!open) return undefined;

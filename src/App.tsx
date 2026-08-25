@@ -27,6 +27,9 @@ import DoctorVisitsPage from './pages/DoctorVisitsPage';
 import AdminWorkspaceLayout from './layouts/AdminWorkspaceLayout';
 import SecretaryWorkspaceLayout from './layouts/SecretaryWorkspaceLayout';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminDepartmentsPage from './pages/AdminDepartmentsPage';
+import AdminUsersPage from './pages/AdminUsersPage';
+import AdminAuditPage from './pages/AdminAuditPage';
 import SecretaryDashboard from './pages/SecretaryDashboard';
 import NotificationsPage from './pages/NotificationsPage';
 import ChatbotButton from './components/Chatbot/ChatbotButton';
@@ -92,6 +95,9 @@ function AppContent() {
               </Route>
               <Route path="/admin" element={<RoleRoute allowedRoles={['admin']}><AdminWorkspaceLayout /></RoleRoute>}>
                 <Route index element={<AdminDashboard />} />
+                <Route path="departments" element={<AdminDepartmentsPage />} />
+                <Route path="users" element={<AdminUsersPage />} />
+                <Route path="audit" element={<AdminAuditPage />} />
               </Route>
               <Route path="/secretary" element={<RoleRoute allowedRoles={['secretary']}><SecretaryWorkspaceLayout /></RoleRoute>}>
                 <Route index element={<SecretaryDashboard />} />
