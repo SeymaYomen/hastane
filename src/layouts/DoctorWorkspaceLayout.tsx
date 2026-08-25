@@ -5,6 +5,7 @@ import ThemeSwitcher from '../components/ThemeSwitcher';
 import { supabase } from '../lib/supabase';
 import { getCurrentDoctorProfile, type DoctorProfile } from '../services/doctor/doctorProfileService';
 import NotificationBell from '../components/notifications/NotificationBell';
+import { useAuthRole } from '../hooks/useAuthRole';
 import { useTheme } from '../contexts/ThemeContext';
 
 const links = [
@@ -21,18 +22,20 @@ const DoctorWorkspaceLayout = () => {
   const [profile, setProfile] = useState<DoctorProfile | null>(null);
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { user } = useAuthRole();
   const isHighContrast = theme === 'high-contrast';
 
   useEffect(() => {
     let mounted = true;
-    void supabase.auth.getUser().then(async ({ data }) => {
-      if (data.user) {
-        const doctor = await getCurrentDoctorProfile(data.user.id);
-        if (mounted) setProfile(doctor);
-      }
-    }).catch((error) => console.error('Doktor çalışma alanı profili yüklenemedi:', error));
+    if (user) {
+      void getCurrentDoctorProfile(user.id)
+        .then((doctor) => {
+          if (mounted) setProfile(doctor);
+        })
+        .catch((error) => console.error('Doktor çalışma alanı profili yüklenemedi:', error));
+    }
     return () => { mounted = false; };
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (!open) return undefined;

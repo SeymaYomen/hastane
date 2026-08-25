@@ -1,6 +1,7 @@
 
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { AuthRoleProvider } from './contexts/AuthRoleContext';
 import { DataProvider } from './contexts/DataContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -23,6 +24,10 @@ import DoctorAppointmentsPage from './pages/DoctorAppointmentsPage';
 import DoctorPatientsPage from './pages/DoctorPatientsPage';
 import DoctorPatientTimelinePage from './pages/DoctorPatientTimelinePage';
 import DoctorVisitsPage from './pages/DoctorVisitsPage';
+import AdminWorkspaceLayout from './layouts/AdminWorkspaceLayout';
+import SecretaryWorkspaceLayout from './layouts/SecretaryWorkspaceLayout';
+import AdminDashboard from './pages/AdminDashboard';
+import SecretaryDashboard from './pages/SecretaryDashboard';
 import NotificationsPage from './pages/NotificationsPage';
 import ChatbotButton from './components/Chatbot/ChatbotButton';
 import ScrollToTop from './components/ScrollToTop';
@@ -30,11 +35,13 @@ import './App.css';
 
 function AppContent() {
   const location = useLocation();
-  const isDoctorWorkspace = location.pathname === '/doctor' || location.pathname.startsWith('/doctor/');
+  const isDedicatedWorkspace = ['/doctor', '/admin', '/secretary'].some(
+    (path) => location.pathname === path || location.pathname.startsWith(`${path}/`),
+  );
 
   return (
         <div className="theme-bg theme-text flex min-h-screen flex-col transition-colors duration-300">
-          {!isDoctorWorkspace && <Navbar />}
+          {!isDedicatedWorkspace && <Navbar />}
           <main className="flex-grow">
             <ScrollToTop />
             <Routes>
@@ -83,12 +90,18 @@ function AppContent() {
                 <Route path="visits" element={<DoctorVisitsPage />} />
                 <Route path="appointment/:appointmentId" element={<DoctorAppointmentDetailPage />} />
               </Route>
+              <Route path="/admin" element={<RoleRoute allowedRoles={['admin']}><AdminWorkspaceLayout /></RoleRoute>}>
+                <Route index element={<AdminDashboard />} />
+              </Route>
+              <Route path="/secretary" element={<RoleRoute allowedRoles={['secretary']}><SecretaryWorkspaceLayout /></RoleRoute>}>
+                <Route index element={<SecretaryDashboard />} />
+              </Route>
               <Route path="/departments" element={<DepartmentsPage />} />
               <Route path="/doctors" element={<DoctorsPage />} />
             </Routes>
           </main>
-          {!isDoctorWorkspace && <ChatbotButton />}
-          {!isDoctorWorkspace && <Footer />}
+          {!isDedicatedWorkspace && <ChatbotButton />}
+          {!isDedicatedWorkspace && <Footer />}
         </div>
   );
 }
@@ -96,9 +109,11 @@ function AppContent() {
 function App() {
   return (
     <ThemeProvider>
-      <DataProvider>
-        <AppContent />
-      </DataProvider>
+      <AuthRoleProvider>
+        <DataProvider>
+          <AppContent />
+        </DataProvider>
+      </AuthRoleProvider>
     </ThemeProvider>
   );
 }

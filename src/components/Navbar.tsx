@@ -1,20 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, ChevronDown, User, Calendar, Phone, LogOut, Heart, Stethoscope, FileHeart } from 'lucide-react';
+import { Menu, X, ChevronDown, User, Calendar, Phone, LogOut, Heart, Stethoscope, FileHeart, ClipboardList, ShieldCheck } from 'lucide-react';
 import ThemeSwitcher from './ThemeSwitcher';
 import { supabase } from '../lib/supabase';
 import { clinicConfig } from '../config/clinicConfig';
 import { useTheme } from '../contexts/ThemeContext';
-import { getCurrentUserRole, type UserRole } from '../services/auth/roleService';
+import { useAuthRole } from '../hooks/useAuthRole';
 import NotificationBell from './notifications/NotificationBell';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [role, setRole] = useState<UserRole | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { theme } = useTheme();
+  const { isAuthenticated, role } = useAuthRole();
   const location = useLocation();
   const navigate = useNavigate();
   const isLight = theme === 'light';
@@ -22,44 +21,6 @@ const Navbar = () => {
   const [brandFirst, brandSecond = ''] = clinicConfig.shortName.split(' ');
 
   const toggleMenu = () => setIsOpen(!isOpen);
-
-  useEffect(() => {
-    let mounted = true;
-    let roleRequest = 0;
-
-    const applySession = async (session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']) => {
-      const request = ++roleRequest;
-      if (!mounted) return;
-      setIsAuthenticated(Boolean(session));
-      setRole(null);
-
-      if (!session?.user) return;
-
-      try {
-        const currentRole = await getCurrentUserRole(session.user.id);
-        if (mounted && request === roleRequest) setRole(currentRole);
-      } catch (error) {
-        console.error('Navbar rolü yüklenemedi:', error);
-        if (mounted && request === roleRequest) setRole(null);
-      }
-    };
-
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      await applySession(session);
-    };
-
-    checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      void applySession(session);
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -83,15 +44,22 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    setRole(null);
     localStorage.removeItem('isAuthenticated');
     navigate('/');
   };
 
+  const panelLink = role === 'doctor'
+    ? { label: 'Doktor Paneli', path: '/doctor', icon: Stethoscope }
+    : role === 'secretary'
+      ? { label: 'Sekreter Paneli', path: '/secretary', icon: ClipboardList }
+      : role === 'admin'
+        ? { label: 'Yönetim Paneli', path: '/admin', icon: ShieldCheck }
+        : null;
+
   const navLinks = [
     { name: 'Ana Sayfa', path: '/' },
-    ...(role === 'doctor'
-      ? [{ name: 'Doktor Paneli', path: '/doctor' }]
+    ...(panelLink
+      ? [{ name: panelLink.label, path: panelLink.path }]
       : role === 'patient' || !isAuthenticated
         ? [{ name: 'Randevu Al', path: '/appointment' }]
         : []),
@@ -179,13 +147,13 @@ const Navbar = () => {
 
                 {showUserMenu && (
                   <div className={`absolute right-0 mt-2 w-52 rounded-2xl py-2 shadow-lg backdrop-blur-md ${isHighContrast ? 'border border-white bg-black' : isLight ? 'border border-[#0F172A]/12 bg-white/95' : 'border border-white/15 bg-[#0D121B]/95'}`}>
-                    {role === 'doctor' && (
+                    {panelLink && (
                       <Link
-                        to="/doctor"
+                        to={panelLink.path}
                         className={`block px-4 py-2 transition-colors ${isHighContrast ? 'text-white hover:bg-white hover:text-black' : isLight ? 'text-[#0F172A] hover:bg-[#F1F5F9]' : 'text-[#E2E8F0] hover:bg-white/10'}`}
                       >
-                        <Stethoscope size={18} className="inline-block mr-2" />
-                        Doktor Paneli
+                        <panelLink.icon size={18} className="inline-block mr-2" />
+                        {panelLink.label}
                       </Link>
                     )}
                     <Link
@@ -272,13 +240,13 @@ const Navbar = () => {
               ))}
               {isAuthenticated ? (
                 <>
-                  {role === 'doctor' && (
+                  {panelLink && (
                     <Link
-                      to="/doctor"
+                      to={panelLink.path}
                       className={`flex items-center space-x-2 py-2 px-4 rounded-lg transition-colors ${isHighContrast ? 'text-white hover:bg-white hover:text-black' : isLight ? 'text-[#334155] hover:bg-[#F1F5F9] hover:text-[#0F172A]' : 'text-white/90 hover:bg-white/10 hover:text-white'}`}
                     >
-                      <Stethoscope size={18} />
-                      <span>Doktor Paneli</span>
+                      <panelLink.icon size={18} />
+                      <span>{panelLink.label}</span>
                     </Link>
                   )}
                   <Link

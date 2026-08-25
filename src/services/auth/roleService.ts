@@ -1,8 +1,15 @@
 import { supabase } from '../../lib/supabase';
 
-export type UserRole = 'patient' | 'doctor' | 'admin';
+export type UserRole = 'patient' | 'doctor' | 'secretary' | 'admin';
 
-const validRoles: UserRole[] = ['patient', 'doctor', 'admin'];
+const validRoles: UserRole[] = ['patient', 'doctor', 'secretary', 'admin'];
+
+const roleHomePaths: Record<UserRole, string> = {
+  patient: '/',
+  doctor: '/doctor',
+  secretary: '/secretary',
+  admin: '/admin',
+};
 
 export const getCurrentUserRole = async (
   userId: string
@@ -23,3 +30,5 @@ export const getCurrentUserRole = async (
 
   return data.role as UserRole;
 };
+
+export const getRoleHomePath = (role: UserRole): string => roleHomePaths[role];

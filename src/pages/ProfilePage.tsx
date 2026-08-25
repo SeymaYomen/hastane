@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { BookOpen, Briefcase, Calendar, CreditCard, Languages, Mail, Phone, Stethoscope, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuthRole } from '../hooks/useAuthRole';
 import { supabase } from '../lib/supabase';
-import { getCurrentUserRole, type UserRole } from '../services/auth/roleService';
 import { getCurrentDoctorProfile, type DoctorProfile } from '../services/doctor/doctorProfileService';
 
 type UserProfile = {
@@ -15,7 +15,7 @@ type UserProfile = {
 };
 
 const ProfilePage = () => {
-  const [role, setRole] = useState<UserRole | null>(null);
+  const { user, role } = useAuthRole();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [doctorProfile, setDoctorProfile] = useState<DoctorProfile | null>(null);
   const [authEmail, setAuthEmail] = useState('');
@@ -31,16 +31,10 @@ const ProfilePage = () => {
 
     const fetchProfile = async () => {
       try {
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError) throw userError;
-        if (!user) throw new Error('Kullanıcı bulunamadı.');
-
-        const currentRole = await getCurrentUserRole(user.id);
-        if (!mounted) return;
-        setRole(currentRole);
+        if (!user || !role) throw new Error('Kullanıcı bulunamadı.');
         setAuthEmail(user.email ?? '');
 
-        if (currentRole === 'doctor') {
+        if (role === 'doctor') {
           const doctor = await getCurrentDoctorProfile(user.id);
           if (!mounted) return;
           setDoctorProfile(doctor);
@@ -70,7 +64,7 @@ const ProfilePage = () => {
 
     fetchProfile();
     return () => { mounted = false; };
-  }, []);
+  }, [role, user]);
 
   const handleSaveProfile = async () => {
     if (!profile || role !== 'patient') return;
@@ -135,9 +129,14 @@ const ProfilePage = () => {
   }
 
   const isPatient = role === 'patient';
+  const profileRoleLabel = isPatient
+    ? 'Hasta Profili'
+    : role === 'secretary'
+      ? 'Sekreter Profili'
+      : 'Yönetici Profili';
   return (
     <div className="min-h-screen bg-slate-50 pb-12 pt-16 dark:bg-slate-950"><div className="mx-auto max-w-4xl px-4 py-12 sm:px-6"><div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-900">
-      <div className="bg-gradient-to-r from-blue-900 to-indigo-900 px-6 py-8"><div className="flex items-center gap-5"><div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/10"><User className="h-10 w-10 text-white" /></div><div><h1 className="text-2xl font-bold text-white">{profile!.full_name}</h1><p className="mt-1 text-blue-200">{isPatient ? 'Hasta Profili' : 'Yönetici Profili'}</p></div></div></div>
+      <div className="bg-gradient-to-r from-blue-900 to-indigo-900 px-6 py-8"><div className="flex items-center gap-5"><div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/10"><User className="h-10 w-10 text-white" /></div><div><h1 className="text-2xl font-bold text-white">{profile!.full_name}</h1><p className="mt-1 text-blue-200">{profileRoleLabel}</p></div></div></div>
       <div className="grid gap-8 p-6 md:grid-cols-2 md:p-8"><section><h2 className="text-xl font-semibold text-slate-900 dark:text-white">Kişisel Bilgiler</h2><div className="mt-6 space-y-5">
         <div className="flex items-start gap-3"><User className="mt-1 h-5 w-5 text-slate-400" /><div className="flex-1"><label htmlFor="profile-name" className="text-sm text-slate-500 dark:text-slate-400">Ad Soyad</label>{isEditing ? <input id="profile-name" type="text" value={editName} onChange={(event) => setEditName(event.target.value)} className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-400" /> : <p className="text-slate-900 dark:text-white">{profile!.full_name}</p>}</div></div>
         <div className="flex items-start gap-3"><Mail className="mt-1 h-5 w-5 text-slate-400" /><div><p className="text-sm text-slate-500 dark:text-slate-400">E-posta</p><p className="text-slate-900 dark:text-white">{profile!.email || authEmail}</p></div></div>

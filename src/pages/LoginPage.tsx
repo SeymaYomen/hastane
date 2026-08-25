@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Lock, Mail, User, ArrowRight, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { getCurrentUserRole } from '../services/auth/roleService';
+import { useAuthRole } from '../hooks/useAuthRole';
+import { getRoleHomePath } from '../services/auth/roleService';
 
 const LoginPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -13,9 +14,31 @@ const LoginPage = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [roleRedirectUserId, setRoleRedirectUserId] = useState<string | null>(null);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const { user: authRoleUser, role, error: authRoleError } = useAuthRole();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    if (!roleRedirectUserId || authRoleUser?.id !== roleRedirectUserId) return;
+
+    if (authRoleError) {
+      setError('Kullanıcı rolü doğrulanamadı. Lütfen tekrar deneyin.');
+      setRoleRedirectUserId(null);
+      return;
+    }
+
+    if (!role) return;
+
+    if (role === 'patient') {
+      const from = location.state?.from?.pathname || '/appointment';
+      navigate(from, { replace: true });
+    } else {
+      navigate(getRoleHomePath(role), { replace: true });
+    }
+    setRoleRedirectUserId(null);
+  }, [authRoleError, authRoleUser?.id, location.state, navigate, role, roleRedirectUserId]);
 
   const validateTCKN = (tcno: string): boolean => {
     if (!/^[1-9][0-9]{10}$/.test(tcno)) return false;
@@ -118,17 +141,7 @@ const LoginPage = () => {
 
         if (data.user) {
   localStorage.setItem('isAuthenticated', 'true');
-
-  const role = await getCurrentUserRole(data.user.id);
-
-  if (role === 'doctor') {
-    navigate('/doctor');
-  } else if (role === 'admin') {
-    navigate('/admin');
-  } else {
-    const from = location.state?.from?.pathname || '/appointment';
-    navigate(from);
-  }
+  setRoleRedirectUserId(data.user.id);
 }
       } else {
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
